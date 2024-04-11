@@ -1,0 +1,3 @@
+[submodule "InfluxDB-client"]
+	path = InfluxDB-client
+	url = ./InfluxDB-client

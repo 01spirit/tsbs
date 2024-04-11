@@ -25,20 +25,23 @@ const (
 
 // BenchmarkRunnerConfig is the configuration of the benchmark runner.
 type BenchmarkRunnerConfig struct {
-	DBName           string `mapstructure:"db-name"`
-	Limit            uint64 `mapstructure:"max-queries"`
-	LimitRPS         uint64 `mapstructure:"max-rps"`
-	MemProfile       string `mapstructure:"memprofile"`
-	HDRLatenciesFile string `mapstructure:"hdr-latencies"`
-	Workers          uint   `mapstructure:"workers"`
-	PrintResponses   bool   `mapstructure:"print-responses"`
-	Debug            int    `mapstructure:"debug"`
-	FileName         string `mapstructure:"file"`
-	BurnIn           uint64 `mapstructure:"burn-in"`
-	PrintInterval    uint64 `mapstructure:"print-interval"`
-	PrewarmQueries   bool   `mapstructure:"prewarm-queries"`
-	ResultsFile      string `mapstructure:"results-file"`
+	DBName           string `mapstructure:"db-name"`         // 数据库名称，用于指定要执行基准测试的数据库。
+	Limit            uint64 `mapstructure:"max-queries"`     // 最大查询数量，表示要执行的查询的最大数量。
+	LimitRPS         uint64 `mapstructure:"max-rps"`         // 最大每秒查询率，表示每秒钟执行的最大查询数量。
+	MemProfile       string `mapstructure:"memprofile"`      // 内存分析文件，用于指定内存分析文件的名称或路径。
+	HDRLatenciesFile string `mapstructure:"hdr-latencies"`   // HDR 延迟文件，用于指定 HDR 延迟的文件名称或路径。
+	Workers          uint   `mapstructure:"workers"`         // 工作线程数，表示并发执行基准测试的工作线程数量。
+	PrintResponses   bool   `mapstructure:"print-responses"` // 是否打印响应，表示是否打印每个查询的响应结果。
+	Debug            int    `mapstructure:"debug"`           // 调试级别，用于指定基准测试的调试级别。
+	FileName         string `mapstructure:"file"`            // 文件名，表示文件的名称或路径。
+	BurnIn           uint64 `mapstructure:"burn-in"`         // 预热查询数，表示执行基准测试前执行的预热查询数量。	不计入统计结果
+	PrintInterval    uint64 `mapstructure:"print-interval"`  // 打印间隔，表示打印时间统计的时间间隔。
+	PrewarmQueries   bool   `mapstructure:"prewarm-queries"` // 预热查询，表示是否在执行基准测试前执行预热查询。
+	ResultsFile      string `mapstructure:"results-file"`    // 结果文件，用于指定基准测试结果的文件名称或路径。
 }
+
+// High Dynamic Range (HDR) Histogram of Response Latencies 是一种用于记录和统计不同响应延迟时间的数据结构。
+//HDR Histogram 是一个非常适合用来测量和分析延迟分布的工具，特别是在需要记录广泛范围内延迟时间的场景下。
 
 // AddToFlagSet adds command line flags needed by the BenchmarkRunnerConfig to the flag set.
 func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
@@ -153,11 +156,11 @@ func (b *BenchmarkRunner) Run(queryPool *sync.Pool, processorCreateFn ProcessorC
 
 	rateLimiter := getRateLimiter(b.LimitRPS, b.Workers)
 
-	// Launch query processors
+	// Launch query processors 多线程，为每个 worker 启动一个 查询处理器，然后调用 main 中实现的 ProcessQuery() 向数据库服务器发送请求并获取结果
 	var wg sync.WaitGroup
 	for i := 0; i < int(b.Workers); i++ {
 		wg.Add(1)
-		go b.processorHandler(&wg, rateLimiter, queryPool, processorCreateFn(), i)
+		go b.processorHandler(&wg, rateLimiter, queryPool, processorCreateFn(), i) // 启动一个线程来处理查询
 	}
 
 	// Read in jobs, closing the job channel when done:

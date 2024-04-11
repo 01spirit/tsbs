@@ -29,7 +29,7 @@ func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, influ
 	q.RawQuery = []byte(influxql)
 	q.HumanDescription = []byte(humanDesc)
 	q.Method = []byte("POST")
-	q.Path = []byte(fmt.Sprintf("/query?%s", v.Encode()))
+	q.Path = []byte(fmt.Sprintf("/query?%s", v.Encode())) // 把原始查询语句 RawQuery 添加到 Path 中
 	q.Body = nil
 }
 

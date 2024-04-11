@@ -10,10 +10,10 @@ import (
 type HTTP struct {
 	HumanLabel       []byte
 	HumanDescription []byte
-	Method           []byte
+	Method           []byte // POST
 	Path             []byte
 	Body             []byte
-	RawQuery         []byte
+	RawQuery         []byte // 原始查询
 	StartTimestamp   int64
 	EndTimestamp     int64
 	id               uint64

@@ -12,6 +12,7 @@ import (
 
 	"github.com/blagojts/viper"
 	"github.com/spf13/pflag"
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"github.com/timescale/tsbs/internal/utils"
 	"github.com/timescale/tsbs/pkg/query"
 )
@@ -26,6 +27,11 @@ var (
 var (
 	runner *query.BenchmarkRunner
 )
+
+var c, err = client.NewHTTPClient(client.HTTPConfig{
+	Addr: "http://10.170.48.244:8086",
+	//Addr: "http://localhost:8086",
+})
 
 // Parse args:
 func init() {
@@ -83,7 +89,15 @@ func (p *processor) Init(workerNumber int) {
 
 func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	hq := q.(*query.HTTP)
+
+	//println(string(hq.Path))
+	//println(len(string(hq.Path)))
+	//println(len(string(hq.RawQuery)))
+	//println(string(hq.RawQuery))
+
+	// todo
 	lag, err := p.w.Do(hq, p.opts)
+
 	if err != nil {
 		return nil, err
 	}

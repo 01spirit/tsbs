@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"github.com/timescale/tsbs/pkg/query"
 )
 
@@ -69,31 +70,37 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 		w.uri = append(w.uri, []byte(s)...)
 	}
 
+	// todo 集成客户端
 	// populate a request with data from the Query:
 	req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
 	if err != nil {
 		panic(err)
 	}
 
+	ss := client.GetSemanticSegment(string(q.RawQuery))
+	println(ss)
 	// Perform the request while tracking latency:
-	start := time.Now()
-	resp, err := w.client.Do(req)
+	start := time.Now() // 发送请求之前的时间
+
+	// todo 在这里向客户端发送请求，是发送 HTTP 请求，还是调用接口，传入查询语句
+	resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
+
 	if err != nil {
 		panic(err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // 延迟处理，关闭响应体
 	if resp.StatusCode != http.StatusOK {
 		panic("http request did not return status 200 OK")
 	}
 
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = ioutil.ReadAll(resp.Body) // 获取查询结果
 
 	if err != nil {
 		panic(err)
 	}
 
-	lag = float64(time.Since(start).Nanoseconds()) / 1e6 // milliseconds
+	lag = float64(time.Since(start).Nanoseconds()) / 1e6 // milliseconds	// 计算出延迟	，查询请求发送前后的时间差	作为返回值
 
 	if opts != nil {
 		// Print debug messages, if applicable:
