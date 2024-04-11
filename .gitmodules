@@ -1,3 +1,0 @@
-[submodule "InfluxDB-client"]
-	path = InfluxDB-client
-	url = https://github.com/01spirit/InfluxDB-client.git
