@@ -76,7 +76,7 @@ func TestBaseSimulatorNext(t *testing.T) {
 			write := s.Next(p)
 			generatorIdx := i % testGeneratorScale
 			if got := int(s.generatorIndex); got != generatorIdx+1 {
-				t.Errorf("run %d: generator index incorrect, i = %d: got %d want %d", run, i, got, i+1)
+				t.Errorf("run %d: distributionGenerator index incorrect, i = %d: got %d want %d", run, i, got, i+1)
 			}
 			if generatorIdx < writtenIdx[run-1] && !write {
 				t.Errorf("run %d: should write point at i = %d, but not", run, i)
@@ -217,7 +217,7 @@ func TestBaseSimulatorConfigNewSimulator(t *testing.T) {
 				t.Errorf("incorrect initial epoch: got %d want %d", got, 0)
 			}
 			if got := sim.generatorIndex; got != 0 {
-				t.Errorf("incorrect initial generator index: got %d want %d", got, 0)
+				t.Errorf("incorrect initial distributionGenerator index: got %d want %d", got, 0)
 			}
 			if got := sim.simulatedMeasurementIndex; got != 0 {
 				t.Errorf("incorrect simulated measurement index: got %d want %d", got, 0)
@@ -238,7 +238,7 @@ func TestBaseSimulatorConfigNewSimulator(t *testing.T) {
 			if got := sim.epochs; got != wantEpochs {
 				t.Errorf("incorrect epochs: got %d want %d", got, wantEpochs)
 			}
-			wantMaxPoints := wantEpochs * numGenerators * 9 // 9 measurements per dummy generator
+			wantMaxPoints := wantEpochs * numGenerators * 9 // 9 measurements per dummy distributionGenerator
 			if limit != 0 {
 				wantMaxPoints = limit
 			}

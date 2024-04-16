@@ -24,18 +24,18 @@ const (
 	errCouldNotEncodeQueryFmt   = "could not encode query: %v"
 	errCouldNotQueryStatsFmt    = "could not output query stats: %v"
 	errUseCaseNotImplementedFmt = "use case '%s' not implemented for format '%s'"
-	errInvalidFactory           = "query generator factory for database '%s' does not implement the correct interface"
+	errInvalidFactory           = "query distributionGenerator factory for database '%s' does not implement the correct interface"
 	errUnknownUseCaseFmt        = "use case '%s' is undefined"
 	errCannotParseTimeFmt       = "cannot parse time from string '%s': %v"
 	errBadUseFmt                = "invalid use case specified: '%v'"
 )
 
-// DevopsGeneratorMaker creates a query generator for devops use case
+// DevopsGeneratorMaker creates a query distributionGenerator for devops use case
 type DevopsGeneratorMaker interface {
 	NewDevops(start, end time.Time, scale int) (queryUtils.QueryGenerator, error)
 }
 
-// IoTGeneratorMaker creates a quert generator for iot use case
+// IoTGeneratorMaker creates a quert distributionGenerator for iot use case
 type IoTGeneratorMaker interface {
 	NewIoT(start, end time.Time, scale int) (queryUtils.QueryGenerator, error)
 }

@@ -53,7 +53,7 @@ var Fields = GetFieldKeys(c, MyDB)
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 
 // 结果转换成字节数组时string类型占用字节数
-const STRINGBYTELENGTH = 24
+const STRINGBYTELENGTH = 32
 
 // fatcache 设置存入的时间间隔		"1.5h"	"15m"
 const TimeSize = "8m"
@@ -1372,7 +1372,7 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 	return results
 }
 
-/* STsCache */
+// IntegratedClient /* STsCache */
 /*
 	1. 客户端接收查询语句
 	2. 客户端向 cache 系统查询，得到部分结果
@@ -1391,6 +1391,7 @@ func IntegratedClient(queryString string) {
 	semanticSegment := ""
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 		semanticSegment = GetSemanticSegment(queryString)
+		log.Println("ss")
 		/* 存入全局 map */
 		QueryTemplates[queryTemplate] = semanticSegment
 	} else {
@@ -1406,7 +1407,7 @@ func IntegratedClient(queryString string) {
 		q := NewQuery(queryString, MyDB, "s")
 		resp, _ := c.Query(q)
 
-		if resp != nil {
+		if !ResponseIsEmpty(resp) {
 			//ss := GetSemanticSegment(queryString)
 			st, et := GetResponseTimeRange(resp)
 			numOfTab := GetNumOfTable(resp)
@@ -1423,11 +1424,10 @@ func IntegratedClient(queryString string) {
 		//} else if err != nil { // 异常
 		//	log.Fatalf("Error getting value: %v", err)
 	} else { // 缓存部分命中或完全命中
-		log.Printf("GET.")
 
 		/* 把查询结果从字节流转换成 Response 结构 */
 		convertedResponse := ByteArrayToResponse(values)
-		fmt.Println(convertedResponse.ToString())
+		//fmt.Println(convertedResponse.ToString())
 
 		/* 从cache返回的数据的时间范围 */
 		recv_start_time, recv_end_time := GetResponseTimeRange(convertedResponse)
@@ -1465,8 +1465,8 @@ func IntegratedClient(queryString string) {
 			numOfTab := GetNumOfTable(remainResponse)
 			remainValues := ResponseToByteArray(remainResponse, remainQuery)
 
-			fmt.Println("To be set again:")
-			fmt.Println(remainResponse.ToString())
+			//fmt.Println("To be set again:")
+			//fmt.Println(remainResponse.ToString())
 
 			err = stscacheConn.Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			if err != nil {
@@ -1474,6 +1474,9 @@ func IntegratedClient(queryString string) {
 			} else {
 				log.Printf("STORED.")
 			}
+			log.Printf("partially GET.")
+		} else {
+			log.Printf("GET.")
 		}
 
 	}

@@ -23,7 +23,7 @@ func TestDevopsGroupByTime(t *testing.T) {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(s, e, 10)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	d := dq.(*Devops)
 
@@ -49,7 +49,7 @@ func TestDevopsGroupByOrderByLimit(t *testing.T) {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(s, e, 10)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	d := dq.(*Devops)
 
@@ -150,7 +150,7 @@ func TestLastPointPerHost(t *testing.T) {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(s, e, 10)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	d := dq.(*Devops)
 
@@ -228,7 +228,7 @@ func runTestCases(t *testing.T, testFunc func(*Devops, testCase) query.Query, s 
 			b := BaseGenerator{}
 			dq, err := b.NewDevops(s, e, 10)
 			if err != nil {
-				t.Fatalf("Error while creating devops generator")
+				t.Fatalf("Error while creating devops distributionGenerator")
 			}
 			d := dq.(*Devops)
 

@@ -33,7 +33,7 @@ func NewCore(start, end time.Time, scale int) (*Core, error) {
 	return &Core{Interval: ti, Scale: scale}, nil
 }
 
-// PanicUnimplementedQuery generates a panic for the provided query generator.
+// PanicUnimplementedQuery generates a panic for the provided query distributionGenerator.
 func PanicUnimplementedQuery(dg utils.QueryGenerator) {
 	panic(fmt.Sprintf("database (%v) does not implement query", reflect.TypeOf(dg)))
 }

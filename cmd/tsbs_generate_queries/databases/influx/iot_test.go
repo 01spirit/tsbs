@@ -91,7 +91,7 @@ func TestLastLocPerTruck(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -121,7 +121,7 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -153,7 +153,7 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -215,7 +215,7 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(6*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -250,7 +250,7 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -280,7 +280,7 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -314,7 +314,7 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -355,7 +355,7 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -387,7 +387,7 @@ func TestAvgLoad(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -421,7 +421,7 @@ func TestDailyTruckActivity(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -458,7 +458,7 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
-			t.Fatalf("Error while creating iot generator")
+			t.Fatalf("Error while creating iot distributionGenerator")
 		}
 
 		g := ig.(*IoT)
@@ -525,7 +525,7 @@ func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query,
 			b := BaseGenerator{}
 			dq, err := b.NewIoT(s, e, testScale)
 			if err != nil {
-				t.Fatalf("Error while creating devops generator")
+				t.Fatalf("Error while creating devops distributionGenerator")
 			}
 			i := dq.(*IoT)
 

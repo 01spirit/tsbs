@@ -78,7 +78,7 @@ func (gms *GenericMetricsSimulator) Headers() *common.GeneratedDataHeaders {
 	}
 }
 
-// Next advances a Point to the next state in the generator.
+// Next advances a Point to the next state in the distributionGenerator.
 func (gms *GenericMetricsSimulator) Next(p *data.Point) bool {
 	if gms.hostIndex >= uint64(len(gms.hosts)) {
 		// we ended here b/c we reach the host limit

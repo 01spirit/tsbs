@@ -55,7 +55,7 @@ func TestNewSleepRegulator(t *testing.T) {
 
 			for expectedWorker := 0; expectedWorker < tc.workers; expectedWorker++ {
 				if sr.sleepTimes[expectedWorker] == nil {
-					t.Errorf("sleep generator fn for worker %d is missing", expectedWorker)
+					t.Errorf("sleep distributionGenerator fn for worker %d is missing", expectedWorker)
 					break
 				}
 			}

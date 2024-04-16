@@ -125,7 +125,7 @@ func acquireGenerator(t *testing.T, interval time.Duration, scale int) *Devops {
 	e := s.Add(interval)
 	g, err := b.NewDevops(s, e, scale)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	return g.(*Devops)
 }

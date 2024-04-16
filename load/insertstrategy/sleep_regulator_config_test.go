@@ -57,7 +57,7 @@ func TestNewConstantSleepTimeGenerator(t *testing.T) {
 		first := genFn()
 		second := genFn()
 		if first != second {
-			t.Errorf("generator is not constant. First: %v; Second: %v", first, second)
+			t.Errorf("distributionGenerator is not constant. First: %v; Second: %v", first, second)
 			continue
 		}
 		if first != tc.expectedDuration {
@@ -78,7 +78,7 @@ func TestNewRangeSleepTimeGenerator(t *testing.T) {
 
 	rnd := rand.New(rand.NewSource(1))
 	for _, tc := range testCases {
-		desc := fmt.Sprintf("test range generator between %d and %d", tc.minSeconds, tc.maxSeconds)
+		desc := fmt.Sprintf("test range distributionGenerator between %d and %d", tc.minSeconds, tc.maxSeconds)
 		t.Run(desc, func(t *testing.T) {
 			genFn := newRangeSleepTimeGenerator(tc.minSeconds, tc.maxSeconds, rnd)
 			minDur := time.Second * time.Duration(tc.minSeconds)

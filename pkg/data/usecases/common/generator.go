@@ -16,7 +16,7 @@ type Generator interface {
 	TickAll(d time.Duration)
 }
 
-// Tag is a key-value pair of information which is used to tag a generator
+// Tag is a key-value pair of information which is used to tag a distributionGenerator
 type Tag struct {
 	Key   []byte
 	Value interface{}

@@ -15,7 +15,7 @@ import (
 // ResponseIsEmpty 判断结果是否为空
 func ResponseIsEmpty(resp *Response) bool {
 	/* 以下情况之一表示结果为空，返回 true */
-	return resp == nil || len(resp.Results[0].Series) == 0 || len(resp.Results[0].Series[0].Values) == 0
+	return resp == nil || resp.Results == nil || len(resp.Results[0].Series) == 0 || len(resp.Results[0].Series[0].Values) == 0
 }
 
 // GetNumOfTable 获取查询结果中表的数量

@@ -31,7 +31,7 @@ func TestDevopsGetHostWhereWithHostnames(t *testing.T) {
 		d, err := b.NewDevops(time.Now(), time.Now(), 10)
 
 		if err != nil {
-			t.Fatalf("Error while creating devops generator")
+			t.Fatalf("Error while creating devops distributionGenerator")
 		}
 
 		got := d.(*Devops).getHostWhereWithHostnames(c.hostnames)
@@ -57,7 +57,7 @@ func TestDevopsFillInQuery(t *testing.T) {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(now, now.Add(time.Nanosecond), 10)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	d := dq.(*Devops)
 

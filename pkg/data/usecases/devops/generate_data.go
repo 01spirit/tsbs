@@ -13,7 +13,7 @@ type DevopsSimulator struct {
 	simulatedMeasurementIndex int
 }
 
-// Next advances a Point to the next state in the generator.
+// Next advances a Point to the next state in the distributionGenerator.
 func (d *DevopsSimulator) Next(p *data.Point) bool {
 	// switch to the next metric if needed
 	if d.hostIndex == uint64(len(d.hosts)) {

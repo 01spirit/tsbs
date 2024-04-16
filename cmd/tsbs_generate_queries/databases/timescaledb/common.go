@@ -32,7 +32,7 @@ func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, table
 	q.SqlQuery = []byte(sql)
 }
 
-// NewDevops creates a new devops use case query generator.
+// NewDevops creates a new devops use case query distributionGenerator.
 func (g *BaseGenerator) NewDevops(start, end time.Time, scale int) (utils.QueryGenerator, error) {
 	core, err := devops.NewCore(start, end, scale)
 
@@ -48,7 +48,7 @@ func (g *BaseGenerator) NewDevops(start, end time.Time, scale int) (utils.QueryG
 	return devops, nil
 }
 
-// NewIoT creates a new iot use case query generator.
+// NewIoT creates a new iot use case query distributionGenerator.
 func (g *BaseGenerator) NewIoT(start, end time.Time, scale int) (utils.QueryGenerator, error) {
 	core, err := iot.NewCore(start, end, scale)
 

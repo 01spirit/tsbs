@@ -104,7 +104,7 @@ func (s *BaseSimulator) Finished() bool {
 	return s.madePoints >= s.maxPoints
 }
 
-// Next advances a Point to the next state in the generator.
+// Next advances a Point to the next state in the distributionGenerator.
 func (s *BaseSimulator) Next(p *data.Point) bool {
 	if s.generatorIndex == uint64(len(s.generators)) {
 		s.generatorIndex = 0

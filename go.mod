@@ -1,6 +1,7 @@
 module github.com/timescale/tsbs
 
 go 1.21.4
+//go 1.14
 
 require (
 	github.com/01spirit/InfluxDB-client v1.0.0

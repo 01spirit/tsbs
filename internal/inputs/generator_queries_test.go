@@ -251,7 +251,7 @@ func TestGetUseCaseGenerator(t *testing.T) {
 		err := g.init(c)
 
 		if err != nil {
-			t.Fatalf("Error initializing query generator: %s", err)
+			t.Fatalf("Error initializing query distributionGenerator: %s", err)
 		}
 
 		useGen, err := g.getUseCaseGenerator(c)
@@ -268,42 +268,42 @@ func TestGetUseCaseGenerator(t *testing.T) {
 	bc := cassandra.BaseGenerator{}
 	cass, err := bc.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating cassandra query generator")
+		t.Fatalf("Error creating cassandra query distributionGenerator")
 	}
 	checkType(constants.FormatCassandra, cass)
 
 	bcr := cratedb.BaseGenerator{}
 	crate, err := bcr.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Errorf("Error creating cratedb query generator")
+		t.Errorf("Error creating cratedb query distributionGenerator")
 	}
 	checkType(constants.FormatCrateDB, crate)
 
 	bi := influx.BaseGenerator{}
 	indb, err := bi.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating influx query generator")
+		t.Fatalf("Error creating influx query distributionGenerator")
 	}
 	checkType(constants.FormatInflux, indb)
 
 	bs := siridb.BaseGenerator{}
 	siri, err := bs.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating siridb query generator")
+		t.Fatalf("Error creating siridb query distributionGenerator")
 	}
 	checkType(constants.FormatSiriDB, siri)
 
 	bm := mongo.BaseGenerator{}
 	mongodb, err := bm.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating mongodb query generator")
+		t.Fatalf("Error creating mongodb query distributionGenerator")
 	}
 	checkType(constants.FormatMongo, mongodb)
 
 	bm.UseNaive = true
 	nmongo, err := bm.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating naive mongodb query generator")
+		t.Fatalf("Error creating naive mongodb query distributionGenerator")
 	}
 	g.conf.MongoUseNaive = true
 	checkType(constants.FormatMongo, nmongo)
@@ -311,14 +311,14 @@ func TestGetUseCaseGenerator(t *testing.T) {
 	bcc := clickhouse.BaseGenerator{}
 	clickh, err := bcc.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating clickhouse query generator")
+		t.Fatalf("Error creating clickhouse query distributionGenerator")
 	}
 	checkType(constants.FormatClickhouse, clickh)
 
 	bq := questdb.BaseGenerator{}
 	qdb, err := bq.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
-		t.Fatalf("Error creating questdb query generator")
+		t.Fatalf("Error creating questdb query distributionGenerator")
 	}
 	checkType(constants.FormatQuestDB, qdb)
 
@@ -514,7 +514,7 @@ func TestQueryGeneratorRunQueryGeneration(t *testing.T) {
 		config.Debug = c.level
 		err := g.init(config)
 		if err != nil {
-			t.Fatalf("Error initializing query generator: %s", err)
+			t.Fatalf("Error initializing query distributionGenerator: %s", err)
 		}
 
 		var buf bytes.Buffer

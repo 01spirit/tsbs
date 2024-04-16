@@ -365,6 +365,8 @@ func TestIntegratedSM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			MyDB := "NOAA_water_database"
+			var TagKV = GetTagKV(c, MyDB)
 			measurement := MeasurementName(tt.queryString)
 			_, tagConds := PredicatesAndTagConditions(tt.queryString, measurement, TagKV)
 			//fields, aggr := FieldsAndAggregation(queryString, measurement)
@@ -413,7 +415,7 @@ func TestGroupByTags(t *testing.T) {
 		},
 		{
 			name:        "4",
-			queryString: "SELECT index FROM h2o_quality WHERE time >= '2019-08-18T00:00:00Z' AND time <= '2019-08-18T00:30:00Z' GROUp by location, randtag, time(12m)",
+			queryString: "SELECT index FROM h2o_quality WHERE time >= '2019-08-18T00:00:00Z' AND time <= '2019-08-18T00:30:00Z' GROUp by \"location\", \"randtag\", time(12m)",
 			expected:    []string{"location", "randtag"},
 		},
 		{
@@ -756,7 +758,7 @@ func TestGetSemanticSegment(t *testing.T) {
 		},
 		{
 			name:        "t7-1",
-			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T17:50:00Z' and time < '2022-01-01T18:00:00Z' and usage_guest > 99.0 group by hostname",
+			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T17:50:00Z' and time < '2022-01-01T18:00:00Z' and usage_guest > 99.0 group by \"hostname\"",
 			expected:    "{(cpu.hostname=host_0)(cpu.hostname=host_1)(cpu.hostname=host_2)(cpu.hostname=host_3)}#{usage_guest[float64]}#{(usage_guest>99.000[float64])}#{empty,empty}",
 		},
 	}

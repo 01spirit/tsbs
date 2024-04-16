@@ -36,7 +36,7 @@ func TestDevopsGetHostWhereWithHostnames(t *testing.T) {
 		b := BaseGenerator{}
 		dq, err := b.NewDevops(time.Now(), time.Now(), 10)
 		if err != nil {
-			t.Fatalf("Error while creating devops generator")
+			t.Fatalf("Error while creating devops distributionGenerator")
 		}
 		d := dq.(*Devops)
 
@@ -68,7 +68,7 @@ func TestDevopsGetMetricWhereWithMetrics(t *testing.T) {
 		b := BaseGenerator{}
 		dq, err := b.NewDevops(time.Now(), time.Now(), 10)
 		if err != nil {
-			t.Fatalf("Error while creating devops generator")
+			t.Fatalf("Error while creating devops distributionGenerator")
 		}
 		d := dq.(*Devops)
 
@@ -328,7 +328,7 @@ func TestDevopsFillInQuery(t *testing.T) {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(time.Now(), time.Now(), 10)
 	if err != nil {
-		t.Fatalf("Error while creating devops generator")
+		t.Fatalf("Error while creating devops distributionGenerator")
 	}
 	d := dq.(*Devops)
 	qi := d.GenerateEmptyQuery()
@@ -373,7 +373,7 @@ func runTestCases(t *testing.T, testFunc func(*Devops, testCase) query.Query, s 
 			b := BaseGenerator{}
 			dq, err := b.NewDevops(s, e, 10)
 			if err != nil {
-				t.Fatalf("Error while creating devops generator")
+				t.Fatalf("Error while creating devops distributionGenerator")
 			}
 			d := dq.(*Devops)
 

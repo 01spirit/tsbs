@@ -97,7 +97,7 @@ func splitIntervalString(insertIntervalString string) []string {
 	return strings.Split(insertIntervalString, intervalSeparator)
 }
 
-// an initialRand generator is used to give the seeds for new rand generators
+// an initialRand distributionGenerator is used to give the seeds for new rand generators
 // that will be used by the workers when asking how much should they sleep
 // used only for irregular sleep patterns
 func makeRandsForWorkers(num int, initialRand *rand.Rand) []*rand.Rand {
@@ -122,7 +122,7 @@ func newConstantSleepTimeGenerator(maxSleepTime int) generateSleepTimeFn {
 // returns a function that can generate a random integer in the range [minSleepTime, maxSleepTime]
 func newRangeSleepTimeGenerator(minSleepTime, maxSleepTime int, randToUse *rand.Rand) generateSleepTimeFn {
 	if randToUse == nil {
-		panic("random number generator passed to range sleep generator was nil")
+		panic("random number distributionGenerator passed to range sleep distributionGenerator was nil")
 	}
 	return func() time.Duration {
 		sleep := minSleepTime + randToUse.Intn(maxSleepTime-minSleepTime)

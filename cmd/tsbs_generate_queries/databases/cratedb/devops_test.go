@@ -18,7 +18,7 @@ func assertNewDevops(t *testing.T, start, end time.Time) *Devops {
 	b := BaseGenerator{}
 	dq, err := b.NewDevops(start, end, testScale)
 	if err != nil {
-		t.Fatalf("error while creating devops generator")
+		t.Fatalf("error while creating devops distributionGenerator")
 	}
 
 	return dq.(*Devops)

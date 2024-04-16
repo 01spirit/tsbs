@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	stscache "github.com/01spirit/InfluxDB-client/memcache"
+	stscache "github.com/timescale/tsbs/InfluxDB-client/memcache"
 	"io/ioutil"
 	"log"
 	"net/http"

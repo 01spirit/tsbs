@@ -193,7 +193,7 @@ func TestGetRandomHosts(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rand.Seed(100) // always reset the random number generator
+		rand.Seed(100) // always reset the random number distributionGenerator
 		if c.shouldErr {
 			hosts, err := getRandomHosts(c.nHosts, c.scale)
 			if hosts != nil {

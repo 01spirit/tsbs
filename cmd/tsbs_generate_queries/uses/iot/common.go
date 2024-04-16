@@ -52,6 +52,9 @@ const (
 	LabelDailyActivity = "daily-activity"
 	// LabelBreakdownFrequency is the label for the breakdown frequency query.
 	LabelBreakdownFrequency = "breakdown-frequency"
+
+	// LableSimpleIoTQuery 自己实现的简易的 IoT 数据集的查询
+	LabelSimpleIoTQuery = "simple-iot"
 )
 
 // Core is the common component of all generators for all systems.
@@ -163,4 +166,9 @@ type DailyTruckActivityFiller interface {
 // TruckBreakdownFrequencyFiller is a type that can fill in the truck breakdown frequency query.
 type TruckBreakdownFrequencyFiller interface {
 	TruckBreakdownFrequency(query.Query)
+}
+
+// SimpleIoTFiller 简单的 IoT 数据集的查询
+type SimpleIoTFiller interface {
+	SimpleIoT(query.Query)
 }

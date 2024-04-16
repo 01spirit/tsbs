@@ -2,6 +2,7 @@ package influx
 
 import (
 	"fmt"
+	"github.com/timescale/tsbs/cmd/tsbs_generate_queries/uses/devops"
 	"strings"
 	"time"
 
@@ -322,4 +323,16 @@ func tenMinutePeriods(minutesPerHour float64, duration time.Duration) int {
 	durationMinutes := duration.Minutes()
 	leftover := minutesPerHour * duration.Hours()
 	return int((durationMinutes - leftover) / 10)
+}
+
+func (i *IoT) SimpleIoT(qi query.Query) {
+	interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	influxql := fmt.Sprintf(
+		`SELECT latitude,longitude FROM readings WHERE device_version='v1.0' AND TIME >= '%s' AND time < '%s'`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx simple IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
 }

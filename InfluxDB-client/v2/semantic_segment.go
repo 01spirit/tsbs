@@ -63,6 +63,9 @@ func GroupByTags(queryString string, measurementName string) []string {
 		if strings.Contains(tag, "time") {
 			continue
 		}
+		if strings.Contains(tag, "\"") { // 去掉双引号
+			tag = tag[1 : len(tag)-1]
+		}
 		tags = append(tags, tag)
 	}
 	if len(tags) == 0 {
@@ -298,6 +301,9 @@ func MeasurementName(queryString string) string {
 	parseExpr := condExprMatch[1]
 
 	trimStr := strings.TrimSpace(parseExpr)
+	if strings.Contains(trimStr, "\"") { // 去掉双引号
+		trimStr = trimStr[1 : len(trimStr)-1]
+	}
 	splitIndex := strings.LastIndex(trimStr, ".") + 1
 	measurementName := trimStr[splitIndex:]
 
@@ -311,19 +317,19 @@ func combinationTagValues(allTagStr [][]string) []string {
 		return []string{}
 	}
 	combinations = []string{}
-	backtrack(allTagStr, 0, "")
+	backtrace(allTagStr, 0, "")
 	slices.Sort(combinations)
 	return combinations
 }
 
-func backtrack(allTagStr [][]string, index int, combination string) {
+func backtrace(allTagStr [][]string, index int, combination string) {
 	if index == len(allTagStr) {
 		combinations = append(combinations, combination)
 	} else {
 		tagStr := allTagStr[index]
 		valCounts := len(tagStr)
 		for i := 0; i < valCounts; i++ {
-			backtrack(allTagStr, index+1, combination+","+string(tagStr[i]))
+			backtrace(allTagStr, index+1, combination+","+string(tagStr[i]))
 		}
 	}
 }
@@ -360,11 +366,18 @@ func IntegratedSM(measurementName string, tagConds []string, tags []string) stri
 		}
 	}
 
+	keys := make([]string, 0)
+	for key := range tagValues {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
 	table_num := 1 // 结果中的子表数量
-	tagStr := make([]string, 0)
 	allTagStr := make([][]string, 0)
-	for _, val := range tagValues {
+	for _, key := range keys {
+		val := tagValues[key]
 		table_num *= len(val)
+		tagStr := make([]string, 0)
 		for _, v := range val {
 			tmp := fmt.Sprintf("%s.%s", measurementName, v)
 			tagStr = append(tagStr, tmp)

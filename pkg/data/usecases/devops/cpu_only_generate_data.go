@@ -25,7 +25,7 @@ func (d *CPUOnlySimulator) Headers() *common.GeneratedDataHeaders {
 	}
 }
 
-// Next advances a Point to the next state in the generator.
+// Next advances a Point to the next state in the distributionGenerator.
 func (d *CPUOnlySimulator) Next(p *data.Point) bool {
 	// Switch to the next metric if needed
 	if d.hostIndex == uint64(len(d.hosts)) {
