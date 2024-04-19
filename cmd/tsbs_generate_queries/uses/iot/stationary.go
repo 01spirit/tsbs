@@ -19,7 +19,7 @@ func NewStationaryTrucks(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details.
-func (i *StationaryTrucks) Fill(q query.Query) query.Query {
+func (i *StationaryTrucks) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := i.core.(StationaryTrucksFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)

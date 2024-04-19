@@ -74,7 +74,7 @@ func Workloads() (resp *client.Response, err error) {
 		queryString = scanner.Text()
 
 		// 向数据库查询
-		query := client.NewQuery(queryString, client.MyDB, "s")
+		query := client.NewQuery(queryString, client.DB, "s")
 		resp, err = c.Query(query)
 		//log.Println(queryString)
 
@@ -132,15 +132,15 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	log.Println(string(q.RawQuery))
 	//client.IntegratedClient(string(q.RawQuery))
 
-	query := client.NewQuery(string(q.RawQuery), client.MyDB, "s")
-	//_, err = c.Query(query)
-	resp, err := c.Query(query)
-	byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
-	log.Println(resp.ToString())
-	log.Println(len(byteArr))
+	query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
+	_, err = c.Query(query)
+	//resp, err := c.Query(query)
+	//byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
+	//log.Println(resp.ToString())
+	//log.Println(len(byteArr))
 
 	//resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
-
+	//
 	//if err != nil {
 	//	panic(err)
 	//}

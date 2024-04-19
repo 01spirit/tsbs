@@ -19,7 +19,7 @@ func NewTruckBreakdownFrequency(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details.
-func (i *TruckBreakdownFrequency) Fill(q query.Query) query.Query {
+func (i *TruckBreakdownFrequency) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := i.core.(TruckBreakdownFrequencyFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)

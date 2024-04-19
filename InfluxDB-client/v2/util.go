@@ -124,7 +124,7 @@ func GetQueryTemplate(queryString string) string {
 func GetFieldKeys(c Client, database string) map[string]map[string]string {
 	// 构建查询语句
 	//query := fmt.Sprintf("SHOW FIELD KEYS on %s from %s", database, measurement)
-	query := fmt.Sprintf("SHOW FIELD KEYS on %s", database)
+	query := fmt.Sprintf("SHOW FIELD KEYS on \"%s\"", database)
 
 	// 执行查询
 	q := NewQuery(query, database, "")
@@ -153,6 +153,8 @@ func GetFieldKeys(c Client, database string) map[string]map[string]string {
 			}
 			if datatype == "float" {
 				datatype = "float64"
+			} else if datatype == "integer" {
+				datatype = "int64"
 			}
 			fieldNames = append(fieldNames, fieldName)
 			datatypes = append(datatypes, datatype)
@@ -184,7 +186,7 @@ type MeasurementTagMap struct {
 func GetTagKV(c Client, database string) MeasurementTagMap {
 	// 构建查询语句
 	//query := fmt.Sprintf("SHOW FIELD KEYS on %s from %s", database, measurement)
-	queryK := fmt.Sprintf("SHOW tag KEYS on %s", database)
+	queryK := fmt.Sprintf("SHOW tag KEYS on \"%s\"", database)
 
 	// 执行查询
 	q := NewQuery(queryK, database, "")
@@ -215,7 +217,7 @@ func GetTagKV(c Client, database string) MeasurementTagMap {
 	measurementTagMap.Measurement = make(map[string][]TagKeyMap)
 	for k, v := range tagMap {
 		for _, tagKey := range v {
-			queryV := fmt.Sprintf("SHOW tag VALUES on %s from %s with key=\"%s\"", database, k, tagKey)
+			queryV := fmt.Sprintf("SHOW tag VALUES on \"%s\" from \"%s\" with key=\"%s\"", database, k, tagKey)
 			q := NewQuery(queryV, database, "")
 			resp, err := c.Query(q)
 			if err != nil {

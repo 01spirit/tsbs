@@ -7,22 +7,22 @@ import (
 )
 
 // SimpleIoT 自己实现的简单的查询
-type SimpleIoT struct {
+type ReadingsAvgFuelConsumption struct {
 	core utils.QueryGenerator
 }
 
-func NewSimpleIoT(core utils.QueryGenerator) utils.QueryFiller {
-	return &SimpleIoT{
+func NewReadingsAvgFuelConsumption(core utils.QueryGenerator) utils.QueryFiller {
+	return &ReadingsAvgFuelConsumption{
 		core: core,
 	}
 }
 
 // Fill fills in the query.Query with query details.
-func (i *SimpleIoT) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
-	fc, ok := i.core.(SimpleIoTFiller)
+func (i *ReadingsAvgFuelConsumption) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+	fc, ok := i.core.(ReadingsAvgFuelConsumptionFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.SimpleIoT(q, zipNum, latestNum)
+	fc.ReadingsAvgFuelConsumption(q, zipNum, latestNum)
 	return q
 }

@@ -81,6 +81,24 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 	/* 获取每张表单独的语义段 */
 	//seperateSemanticSegment := SeperateSemanticSegment(queryString, resp)	// 已弃用
 	seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
+	nullTags := make([]string, 0)
+	if len(seperateSemanticSegment) < len(resp.Results[0].Series) {
+
+		tagMap := resp.Results[0].Series[0].Tags
+		for key, val := range tagMap {
+			if val == "" {
+				nullTags = append(nullTags, key)
+			}
+		}
+	}
+	nullSegment := GetSeparateSemanticSegmentWithNullTag(seperateSemanticSegment[0], nullTags)
+	newSepSeg := make([]string, 0)
+	if nullSegment == "" {
+		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
+	} else {
+		newSepSeg = append(newSepSeg, nullSegment)
+		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
+	}
 
 	/* 每行数据的字节数 */
 	bytesPerLine := BytesPerLine(datatypes)
@@ -90,7 +108,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 		bytesPerSeries, _ := Int64ToByteArray(int64(bytesPerLine * numOfValues)) // 一张表的数据的总字节数：每行字节数 * 行数
 
 		/* 存入一张表的 semantic segment 和表内所有数据的总字节数 */
-		result = append(result, []byte(seperateSemanticSegment[i])...)
+		result = append(result, []byte(newSepSeg[i])...)
 		result = append(result, []byte(" ")...)
 		result = append(result, bytesPerSeries...)
 		//result = append(result, []byte("\r\n")...) // 每个子表的字节数 和 数据 之间的换行符
@@ -100,6 +118,9 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 		/* 数据转换成字节数组，存入 */
 		for _, v := range s.Values {
 			for j, vv := range v {
+				//if vv == nil {
+				//	log.Println("nil")
+				//}
 				datatype := datatypes[j]
 				tmpBytes := InterfaceToByteArray(j, datatype, vv)
 				result = append(result, tmpBytes...)

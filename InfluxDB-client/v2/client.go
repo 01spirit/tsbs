@@ -48,20 +48,26 @@ var stscacheConn = stscache.New("10.170.41.179:11212")
 var fatcacheConn = fatcache.New("localhost:11213")
 
 // 数据库中所有表的tag和field
-var TagKV = GetTagKV(c, MyDB)
-var Fields = GetFieldKeys(c, MyDB)
+var TagKV = GetTagKV(c, DB)
+var Fields = GetFieldKeys(c, DB)
+
+// var IOTTagKV = GetTagKV(c, IOTDB)
+// var IOTFields = GetFieldKeys(c, IOTDB)
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 
 // 结果转换成字节数组时string类型占用字节数
 const STRINGBYTELENGTH = 32
 
 // fatcache 设置存入的时间间隔		"1.5h"	"15m"
-const TimeSize = "8m"
+const TimeSize = "30m"
 
 // 数据库名称
 const (
-	//MyDB = "NOAA_water_database"
-	MyDB     = "test"
+	//MYDB = "NOAA_water_database"
+	TESTDB   = "test"
+	DB       = "iot"
+	CPUDB    = "devops"
+	IOTDB    = "iot"
 	username = "root"
 	password = "12345678"
 )
@@ -843,7 +849,7 @@ func (r *ChunkedResponse) Close() error {
 }
 
 //func Set(queryString string, c Client, mc *memcache.Client) error {
-//	query := NewQuery(queryString, MyDB, "ns")
+//	query := NewQuery(queryString, DB, "ns")
 //	resp, err := c.Query(query)
 //	if err != nil {
 //		return err
@@ -1256,7 +1262,7 @@ func SplitResponseValuesByTime(queryString string, resp *Response, timeSize stri
 // 按时间尺度分块，存入 cache
 func SetToFatache(queryString string, timeSize string) {
 	semanticSegment := GetSemanticSegment(queryString)
-	qs := NewQuery(queryString, MyDB, "s")
+	qs := NewQuery(queryString, DB, "s")
 	resp, _ := c.Query(qs)
 	datatype := GetDataTypeArrayFromResponse(resp)
 
@@ -1404,7 +1410,7 @@ func IntegratedClient(queryString string) {
 		log.Printf("Key not found in cache")
 
 		/* 向数据库查询全部数据，存入 cache */
-		q := NewQuery(queryString, MyDB, "s")
+		q := NewQuery(queryString, DB, "s")
 		resp, _ := c.Query(q)
 
 		if !ResponseIsEmpty(resp) {
@@ -1442,7 +1448,7 @@ func IntegratedClient(queryString string) {
 			remainQuery = strings.Replace(queryTemplate, "?", remain_start_time_string, 1)
 			remainQuery = strings.Replace(remainQuery, "?", remain_end_time_string, 1)
 
-			q := NewQuery(remainQuery, MyDB, "s")
+			q := NewQuery(remainQuery, DB, "s")
 			remainResponse, _ = c.Query(q)
 		} else if recv_end_time < endTime { // 起始时间命中，结束时间未命中
 			remain_start_time_string := TimeInt64ToString(recv_end_time)
@@ -1453,7 +1459,7 @@ func IntegratedClient(queryString string) {
 			remainQuery = strings.Replace(remainQuery, "?", "'"+remain_end_time_string+"'", 1)
 
 			/* 向数据库查询剩余数据 */
-			q := NewQuery(remainQuery, MyDB, "s")
+			q := NewQuery(remainQuery, DB, "s")
 			remainResponse, _ = c.Query(q)
 		}
 

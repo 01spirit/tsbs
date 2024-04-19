@@ -12,7 +12,16 @@ const (
 	ErrEndBeforeStart = "end time before start time"
 
 	errWindowTooLargeFmt = "random window equal to or larger than TimeInterval: window %v, interval %v"
+
+	hour  = time.Hour
+	day   = 24 * time.Hour
+	week  = 7 * day
+	month = 4 * week
 )
+
+var ZipFianTimeDuration = []time.Duration{
+	hour, 2 * hour, 6 * hour, 12 * hour, day, 2 * day, 4 * day, week, 2 * week, month,
+}
 
 // TimeInterval represents an interval of time in UTC. That is, regardless of
 // what timezone(s) are used for the beginning and end times, they will be
@@ -101,6 +110,34 @@ func (ti *TimeInterval) MustRandWindow(window time.Duration) *TimeInterval {
 		panic(err.Error())
 	}
 	return res
+}
+
+// DistributionRand 用 Latest分布 生成查询的结束时间， 用 Zipfian分布 生成查询的时间区间长度，并以此求出查询的起始时间
+func (ti *TimeInterval) DistributionRand(zipNum int64, latestNum int64) *TimeInterval {
+	duration := ZipFianTimeDuration[zipNum].Nanoseconds() // Zipfian分布生成时间区间
+	totalStartTime := ti.start.UnixNano()                 // 启动项参数中设置的整体查询的 起始时间 和 结束时间
+	totalEndTime := ti.end.UnixNano()
+	//fmt.Println(ti.end)
+
+	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() / 2) * (1000 - latestNum - 1)) // Latest分布生成结束时间	默认从整体结束时间开始向前划分一千个时间区间，每个半小时
+	queryStartTime := queryEndTime - duration
+
+	if queryStartTime < totalStartTime {
+		queryStartTime = totalStartTime
+	}
+
+	if queryEndTime <= queryStartTime {
+		queryEndTime = totalEndTime
+		queryStartTime = queryEndTime - 24*time.Hour.Nanoseconds()
+		//queryEndTime = queryStartTime + 24*time.Hour.Nanoseconds()
+	}
+
+	x, err := NewTimeInterval(time.Unix(0, queryStartTime), time.Unix(0, queryEndTime))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return x
 }
 
 // Start returns the starting time in UTC.

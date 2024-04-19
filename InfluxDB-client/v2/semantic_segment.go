@@ -166,6 +166,8 @@ func FieldsAndAggregation(queryString string, measurementName string) (string, s
 			datatype = "string"
 		} else if datatype == "float" {
 			datatype = "float64"
+		} else if datatype == "integer" {
+			datatype = "int64"
 		}
 		fields[i] = fmt.Sprintf("%s[%s]", fields[i], datatype)
 	}
@@ -192,8 +194,10 @@ func preOrderTraverseBinaryExpr(node *influxql.BinaryExpr, tags *[]string, predi
 			*datatypes = append(*datatypes, "int64")
 		}
 
-		*tags = append(*tags, node.LHS.String())
-		str = strings.ReplaceAll(str, " ", "") //去掉空格
+		tmpStr := strings.ReplaceAll(node.LHS.String(), "\"", "")
+		*tags = append(*tags, tmpStr)
+		str = strings.ReplaceAll(str, " ", "")  //去掉空格
+		str = strings.ReplaceAll(str, "\"", "") //去掉双引号
 		*predicates = append(*predicates, str)
 		return tags, predicates, datatypes
 	}
@@ -301,9 +305,10 @@ func MeasurementName(queryString string) string {
 	parseExpr := condExprMatch[1]
 
 	trimStr := strings.TrimSpace(parseExpr)
-	if strings.Contains(trimStr, "\"") { // 去掉双引号
-		trimStr = trimStr[1 : len(trimStr)-1]
-	}
+	//if strings.Contains(trimStr, "\"") { // 去掉双引号
+	//	trimStr = trimStr[1 : len(trimStr)-1]
+	//}
+	trimStr = strings.ReplaceAll(trimStr, "\"", "")
 	splitIndex := strings.LastIndex(trimStr, ".") + 1
 	measurementName := trimStr[splitIndex:]
 
@@ -408,14 +413,18 @@ func IntegratedSM(measurementName string, tagConds []string, tags []string) stri
 			result += fmt.Sprintf("(%s)", tmp)
 		}
 	} else if len(tagConds) > 0 && len(groupByTags) == 0 {
-		result += "("
-		tmp := ""
+		//result += "("
+		//tmp := ""
+		//for i := range tagConds {
+		//	tmp = fmt.Sprintf("%s.%s,", measurementName, tagConds[i])
+		//	result += fmt.Sprintf("%s", tmp)
+		//}
+		//result = result[:len(result)-1]
+		//result += ")"
 		for i := range tagConds {
-			tmp = fmt.Sprintf("%s.%s,", measurementName, tagConds[i])
+			tmp := fmt.Sprintf("(%s.%s)", measurementName, tagConds[i])
 			result += fmt.Sprintf("%s", tmp)
 		}
-		result = result[:len(result)-1]
-		result += ")"
 	} else {
 		result += fmt.Sprintf("(%s.empty)", measurementName)
 	}
@@ -451,6 +460,26 @@ func GetSeperateSemanticSegment(queryString string) []string {
 	}
 
 	return results
+}
+
+func GetSeparateSemanticSegmentWithNullTag(seperateSemanticSegment string, nullTags []string) string {
+	if len(nullTags) == 0 {
+		return ""
+	}
+	nullSegment := seperateSemanticSegment
+
+	splitSlices := strings.Split(seperateSemanticSegment, nullTags[0])
+	startIndex := strings.Index(splitSlices[1], "=") + 1
+	branketIndex := strings.Index(splitSlices[1], "}")
+	endIndex := strings.Index(splitSlices[1], ",")
+	if endIndex < 0 || endIndex > branketIndex {
+		endIndex = strings.Index(splitSlices[1], ")")
+	}
+
+	splitSlices[1] = strings.Replace(splitSlices[1], splitSlices[1][startIndex:endIndex], "null", 1)
+	nullSegment = splitSlices[0] + nullTags[0] + splitSlices[1]
+
+	return nullSegment
 }
 
 // GetSemanticSegment 重构根据查询语句生成语义段的功能

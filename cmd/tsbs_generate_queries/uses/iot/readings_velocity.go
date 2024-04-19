@@ -6,24 +6,23 @@ import (
 	"github.com/timescale/tsbs/pkg/query"
 )
 
-// AvgLoad contains info for filling in avg load queries.
-type AvgLoad struct {
+// SimpleIoT 自己实现的简单的查询
+type ReadingsVelocity struct {
 	core utils.QueryGenerator
 }
 
-// NewAvgLoad creates a new avg load query filler.
-func NewAvgLoad(core utils.QueryGenerator) utils.QueryFiller {
-	return &AvgLoad{
+func NewReadingsVelocity(core utils.QueryGenerator) utils.QueryFiller {
+	return &ReadingsVelocity{
 		core: core,
 	}
 }
 
 // Fill fills in the query.Query with query details.
-func (i *AvgLoad) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
-	fc, ok := i.core.(AvgLoadFiller)
+func (i *ReadingsVelocity) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+	fc, ok := i.core.(ReadingsVelocityFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.AvgLoad(q)
+	fc.ReadingsVelocity(q, zipNum, latestNum)
 	return q
 }

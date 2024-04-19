@@ -173,6 +173,38 @@ func TestGetFieldKeys(t *testing.T) {
 
 }
 
+func TestGetIoTFieldKeys(t *testing.T) {
+	// 连接数据库
+	var c, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://10.170.48.244:8086",
+		//Addr: "http://localhost:8086",
+	})
+	MyDB := "iot"
+
+	fieldKeys := GetFieldKeys(c, MyDB)
+
+	expected := make(map[string]map[string]string)
+	expected["diagnostics"] = map[string]string{
+		"nominal_fuel_consumption": "float64", "status": "integer", "current_load": "float64",
+		"fuel_capacity": "float64", "fuel_state": "float64", "load_capacity": "float64",
+	}
+	expected["readings"] = map[string]string{
+		"fuel_capacity": "float64", "heading": "float64", "latitude": "float64", "load_capacity": "float64", "longitude": "float64",
+		"nominal_fuel_consumption": "float64", "velocity": "float64", "elevation": "float64", "fuel_consumption": "float64", "grade": "float64",
+	}
+
+	fmt.Println(fieldKeys)
+	fmt.Println("measurement:")
+	for key, val := range fieldKeys {
+		fmt.Printf("%s\n", key)
+		//fmt.Println("\tfield and datatype:")
+		for k, v := range val {
+			fmt.Printf("\t%s:%s\n", k, v)
+		}
+	}
+
+}
+
 func TestGetTagKV(t *testing.T) {
 	// 连接数据库
 	var c, _ = NewHTTPClient(HTTPConfig{
@@ -205,6 +237,40 @@ func TestGetTagKV(t *testing.T) {
 	//h2o_feet
 	//location [coyote_creek santa_monica]
 
+}
+
+func TestGetIoTTagKV(t *testing.T) {
+	// 连接数据库
+	var c, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://10.170.48.244:8086",
+		//Addr: "http://localhost:8086",
+	})
+	MyDB := "iot"
+
+	measurementTagMap := GetTagKV(c, MyDB)
+
+	fmt.Println(measurementTagMap.Measurement)
+	for name, tagmap := range measurementTagMap.Measurement {
+		fmt.Println(name) // 表名
+		for i := range tagmap {
+			for tagkey, tagvalue := range tagmap[i].Tag {
+				fmt.Println(tagkey, tagvalue.Values) // tag key value
+			}
+		}
+	}
+	// 运行结果:
+	//diagnostics
+	//device_version [v2.0]
+	//driver [Rodney Seth]
+	//fleet [South]
+	//model [G-2000]
+	//name [truck_0 truck_1]
+	//readings
+	//device_version [v2.0]
+	//driver [Rodney Seth]
+	//fleet [South]
+	//model [G-2000]
+	//name [truck_0 truck_1]
 }
 
 func TestGetTagArr(t *testing.T) {
@@ -280,3 +346,8 @@ func TestDataTypeArrayFromSF(t *testing.T) {
 	}
 
 }
+
+//func TestIoT(t *testing.T) {
+//	fmt.Println(IOTTagKV)
+//	fmt.Println(IOTFields)
+//}

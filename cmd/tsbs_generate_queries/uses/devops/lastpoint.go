@@ -17,7 +17,7 @@ func NewLastPointPerHost(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details
-func (d *LastPointPerHost) Fill(q query.Query) query.Query {
+func (d *LastPointPerHost) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := d.core.(LastPointFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(d.core)

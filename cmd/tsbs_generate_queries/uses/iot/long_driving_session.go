@@ -19,7 +19,7 @@ func NewTrucksWithLongDrivingSession(core utils.QueryGenerator) utils.QueryFille
 }
 
 // Fill fills in the query.Query with query details.
-func (i *TrucksWithLongDrivingSession) Fill(q query.Query) query.Query {
+func (i *TrucksWithLongDrivingSession) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := i.core.(TruckLongDrivingSessionFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)

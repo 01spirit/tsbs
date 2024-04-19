@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"encoding/gob"
 	"fmt"
+	"github.com/timescale/tsbs/zipfian/counter"
+	"github.com/timescale/tsbs/zipfian/distributionGenerator"
 	"io"
 	"math/rand"
 	"os"
 	"sort"
+	"sync"
 	"time"
 
 	queryUtils "github.com/timescale/tsbs/cmd/tsbs_generate_queries/utils"
@@ -216,9 +219,49 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 		}
 	}
 
+	// 加入两个分布，用于生成随机时间范围
+	zipfian := distributionGenerator.NewZipfianWithItems(10, distributionGenerator.ZipfianConstant)
+	cntr := counter.NewCounter(1000)
+	latest := distributionGenerator.NewSkewedLatest(cntr)
+
+	zipNums := make([]int64, 0)
+	latestNums := make([]int64, 0)
+	rz := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rl := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < int(c.Limit); i++ {
+
+	}
+
+	var mu sync.Mutex
+	random := func() {
+		mu.Lock()
+
+		zipNum := zipfian.Next(rz)
+		zipNums = append(zipNums, zipNum)
+		latestNum := latest.Next(rl)
+		latestNums = append(latestNums, latestNum)
+		//fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\n", zipNum, latestNum)
+		mu.Unlock()
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < int(c.Limit); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			random()
+		}()
+	}
+
+	// 等待所有goroutine完成
+	wg.Wait()
+
 	for i := 0; i < int(c.Limit); i++ {
 		q := useGen.GenerateEmptyQuery()
-		q = filler.Fill(q)
+
+		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\n", zipNums[i], latestNums[i])
+
+		q = filler.Fill(q, zipNums[i], latestNums[i])
 
 		if currentGroup == c.InterleavedGroupID {
 			err := enc.Encode(q)

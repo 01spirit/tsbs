@@ -51,7 +51,14 @@ var useCaseMatrix = map[string]map[string]utils.QueryFillerMaker{
 		iot.LabelDailyActivity:                 iot.NewDailyTruckActivity,
 		iot.LabelBreakdownFrequency:            iot.NewTruckBreakdownFrequency,
 		//
-		iot.LabelSimpleIoTQuery: iot.NewSimpleIoT,
+		iot.LabelSimpleIoTQuery:             iot.NewSimpleIoT,
+		iot.LableDiagnosticsFuel:            iot.NewDiagnosticsFuel,
+		iot.LableDiagnosticsLoad:            iot.NewDiagnosticsLoad,
+		iot.LableReadingsPosition:           iot.NewReadingsPosition,
+		iot.LableReadingsFuel:               iot.NewReadingsFuel,
+		iot.LableReadingsVelocity:           iot.NewReadingsVelocity,
+		iot.LableReadingsAvgFuelConsumption: iot.NewReadingsAvgFuelConsumption,
+		iot.LableReadingsMaxVelocity:        iot.NewReadingsMaxVelocity,
 	},
 }
 

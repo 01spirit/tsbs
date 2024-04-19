@@ -200,6 +200,82 @@ func TestByteArrayToResponse(t *testing.T) {
 
 }
 
+func TestIoT(t *testing.T) {
+	tests := []struct {
+		name        string
+		queryString string
+		expected    string
+	}{
+		{
+			name:        "DiagnosticsLoad",
+			queryString: `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' OR "name"='truck_1' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name"`,
+			expected:    "",
+		},
+		{
+			name:        "DiagnosticsFuel",
+			queryString: `SELECT fuel_capacity,fuel_state,nominal_fuel_consumption FROM "diagnostics" WHERE TIME >= '2022-01-01T00:01:00Z' AND time < '2022-01-01T03:00:00Z' GROUP BY "name"`,
+			expected:    "",
+		},
+		{
+			name:        "ReadingsPosition",
+			queryString: `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name"`,
+			expected:    "",
+		},
+		{
+			name:        "ReadingsFuel",
+			queryString: `SELECT fuel_capacity,fuel_consumption,nominal_fuel_consumption FROM "readings" WHERE TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name"`,
+			expected:    "",
+		},
+		{
+			name:        "ReadingsVelocity",
+			queryString: `SELECT velocity,heading FROM "readings" WHERE TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name"`,
+			expected:    "",
+		},
+		{
+			name:        "ReadingsAvgFuelConsumption",
+			queryString: `SELECT mean(fuel_consumption) FROM "readings" WHERE model='G-2000' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name",time(1h)`,
+			expected:    "",
+		},
+		{
+			name:        "ReadingsMaxVelocity",
+			queryString: `SELECT max(velocity) FROM "readings" WHERE model='G-2000' AND  TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "name",time(1h)`,
+			expected:    "",
+		},
+		{
+			name:        "real queries",
+			queryString: `SELECT current_load,load_capacity FROM "diagnostics" WHERE ("name" = 'truck_1') AND TIME >= '2022-01-01T08:46:50Z' AND TIME < '2022-01-01T20:46:50Z' GROUP BY "name"`,
+			expected:    "",
+		},
+	}
+
+	var c, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://10.170.48.244:8086",
+		//Addr: "http://localhost:8086",
+	})
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := NewQuery(tt.queryString, IOTDB, "s")
+
+			resp, err := c.Query(query)
+
+			if err != nil {
+				t.Errorf(err.Error())
+			}
+
+			respString := resp.ToString()
+			fmt.Println(respString)
+			respBytes := ResponseToByteArray(resp, tt.queryString)
+
+			respConvert := ByteArrayToResponse(respBytes)
+			respConvertString := respConvert.ToString()
+			fmt.Println(respConvertString)
+			fmt.Println(respBytes)
+			fmt.Println(len(respBytes))
+		})
+	}
+}
+
 func TestBoolToByteArray(t *testing.T) {
 	bvs := []bool{true, false}
 	expected := [][]byte{{1}, {0}}

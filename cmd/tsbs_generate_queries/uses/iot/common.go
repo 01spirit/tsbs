@@ -54,7 +54,14 @@ const (
 	LabelBreakdownFrequency = "breakdown-frequency"
 
 	// LableSimpleIoTQuery 自己实现的简易的 IoT 数据集的查询
-	LabelSimpleIoTQuery = "simple-iot"
+	LabelSimpleIoTQuery             = "simple-iot"
+	LableDiagnosticsFuel            = "diagnostics_fuel"
+	LableDiagnosticsLoad            = "diagnostics_load"
+	LableReadingsPosition           = "readings_position"
+	LableReadingsFuel               = "readings_fuel"
+	LableReadingsVelocity           = "readings_velocity"
+	LableReadingsAvgFuelConsumption = "readings_avg_fuel_consumption"
+	LableReadingsMaxVelocity        = "readings_max_velocity"
 )
 
 // Core is the common component of all generators for all systems.
@@ -170,5 +177,33 @@ type TruckBreakdownFrequencyFiller interface {
 
 // SimpleIoTFiller 简单的 IoT 数据集的查询
 type SimpleIoTFiller interface {
-	SimpleIoT(query.Query)
+	SimpleIoT(query.Query, int64, int64)
+}
+
+type DiagnosticsLoadFiller interface {
+	DiagnosticsLoad(query.Query, int, int64, int64)
+}
+
+type DiagnosticsFuelFiller interface {
+	DiagnosticsFuel(query.Query, int64, int64)
+}
+
+type ReadingsPositionFiller interface {
+	ReadingsPosition(query.Query, int64, int64)
+}
+
+type ReadingsFuelFiller interface {
+	ReadingsFuel(query.Query, int64, int64)
+}
+
+type ReadingsVelocityFiller interface {
+	ReadingsVelocity(query.Query, int64, int64)
+}
+
+type ReadingsAvgFuelConsumptionFiller interface {
+	ReadingsAvgFuelConsumption(query.Query, int64, int64)
+}
+
+type ReadingsMaxVelocityFiller interface {
+	ReadingsMaxVelocity(query.Query, int64, int64)
 }

@@ -19,7 +19,7 @@ func NewAvgDailyDrivingDuration(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details.
-func (i *AvgDailyDrivingDuration) Fill(q query.Query) query.Query {
+func (i *AvgDailyDrivingDuration) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := i.core.(AvgDailyDrivingDurationFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)

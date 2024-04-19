@@ -13,7 +13,7 @@ type QueryGenerator interface {
 // QueryFiller describes a type that can fill in a query and return it
 type QueryFiller interface {
 	// Fill fills in the query.Query with query details
-	Fill(query.Query) query.Query
+	Fill(query.Query, int64, int64) query.Query
 }
 
 // QueryFillerMaker is a function that takes a QueryGenerator and returns a QueryFiller

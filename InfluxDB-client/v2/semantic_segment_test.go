@@ -648,6 +648,27 @@ func TestGetSeperateSemanticSegment(t *testing.T) {
 				"{(cpu.hostname=host_2)}#{usage_guest[float64]}#{(usage_guest>99.000[float64])}#{empty,empty}",
 				"{(cpu.hostname=host_3)}#{usage_guest[float64]}#{(usage_guest>99.000[float64])}#{empty,empty}"},
 		},
+		{
+			name:        "Readings_position",
+			queryString: "SELECT latitude,longitude,elevation FROM \"readings\" WHERE fleet='South' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY \"name\"",
+			expected: []string{
+				"{(readings.fleet=South,readings.name=truck_0)}#{latitude[float64],longitude[float64],elevation[float64]}#{empty}#{empty,empty}",
+				"{(readings.fleet=South,readings.name=truck_1)}#{latitude[float64],longitude[float64],elevation[float64]}#{empty}#{empty,empty}"},
+		},
+		{
+			name:        "DiagnosticsLoad",
+			queryString: `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' OR "name"='truck_1' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:10:00Z' GROUP BY "name"`,
+			expected: []string{
+				`{(diagnostics.name=truck_0)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`,
+				`{(diagnostics.name=truck_1)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`},
+		},
+		{
+			name:        "DiagnosticsFuel",
+			queryString: `SELECT fuel_capacity,fuel_state,nominal_fuel_consumption FROM "diagnostics" WHERE model='G-2000' AND TIME >= '2022-01-01T00:01:00Z' AND time < '2022-02-01T00:00:00Z' GROUP BY "name"`,
+			expected: []string{
+				`{(diagnostics.model=G-2000,diagnostics.name=truck_0)}#{fuel_capacity[float64],fuel_state[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`,
+				`{(diagnostics.model=G-2000,diagnostics.name=truck_1)}#{fuel_capacity[float64],fuel_state[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`},
+		},
 	}
 
 	for _, tt := range tests {
@@ -661,6 +682,40 @@ func TestGetSeperateSemanticSegment(t *testing.T) {
 					t.Errorf("expected:\t%s", tt.expected[i])
 				}
 			}
+		})
+	}
+}
+
+func TestGetSeparateSemanticSegmentWithNullTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		segment  string
+		nullTags []string
+		expected string
+	}{
+		{
+			name:     "DiagnosticsFuel",
+			segment:  `{(diagnostics.model=G-2000,diagnostics.name=truck_0)}#{fuel_capacity[float64],fuel_state[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`,
+			nullTags: []string{"name"},
+			expected: `{(diagnostics.model=G-2000,diagnostics.name=null)}#{fuel_capacity[float64],fuel_state[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:     "DiagnosticsFuel",
+			segment:  `{(diagnostics.name=truck_0)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`,
+			nullTags: []string{"name"},
+			expected: `{(diagnostics.name=null)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nullSeg := GetSeparateSemanticSegmentWithNullTag(tt.segment, tt.nullTags)
+
+			if nullSeg != tt.expected {
+				t.Errorf("nullSeg:\t%s\n", nullSeg)
+				t.Errorf("expected:\t%s\n", tt.expected)
+			}
+
 		})
 	}
 }
@@ -760,6 +815,65 @@ func TestGetSemanticSegment(t *testing.T) {
 			name:        "t7-1",
 			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T17:50:00Z' and time < '2022-01-01T18:00:00Z' and usage_guest > 99.0 group by \"hostname\"",
 			expected:    "{(cpu.hostname=host_0)(cpu.hostname=host_1)(cpu.hostname=host_2)(cpu.hostname=host_3)}#{usage_guest[float64]}#{(usage_guest>99.000[float64])}#{empty,empty}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := GetSemanticSegment(tt.queryString)
+			//fmt.Println(ss)
+			if strings.Compare(ss, tt.expected) != 0 {
+				t.Errorf("samantic segment:\t%s", ss)
+				t.Errorf("expected:\t%s", tt.expected)
+			}
+		})
+	}
+}
+
+func TestIoTSemanticSegment(t *testing.T) {
+	tests := []struct {
+		name        string
+		queryString string
+		expected    string
+	}{
+		{
+			name:        "DiagnosticsLoad",
+			queryString: `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' OR "name"='truck_1' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:10:00Z' GROUP BY "name"`,
+			expected:    `{(diagnostics.name=truck_0)(diagnostics.name=truck_1)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:        "DiagnosticsFuel",
+			queryString: `SELECT fuel_capacity,fuel_state,nominal_fuel_consumption FROM "diagnostics" WHERE model='G-2000' AND TIME >= '2022-01-01T00:01:00Z' AND time < '2022-02-01T00:00:00Z' GROUP BY "name"`,
+			expected:    `{(diagnostics.model=G-2000,diagnostics.name=truck_0)(diagnostics.model=G-2000,diagnostics.name=truck_1)}#{fuel_capacity[float64],fuel_state[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:        "Readings_position",
+			queryString: `SELECT latitude,longitude,elevation FROM "readings" WHERE fleet='South' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY "name"`,
+			expected:    `{(readings.fleet=South,readings.name=truck_0)(readings.fleet=South,readings.name=truck_1)}#{latitude[float64],longitude[float64],elevation[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:        "ReadingsFuel",
+			queryString: `SELECT fuel_capacity,fuel_consumption,nominal_fuel_consumption FROM "readings" WHERE fleet='South' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY "name"`,
+			expected:    `{(readings.fleet=South,readings.name=truck_0)(readings.fleet=South,readings.name=truck_1)}#{fuel_capacity[float64],fuel_consumption[float64],nominal_fuel_consumption[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:        "ReadingsVelocity",
+			queryString: `SELECT velocity,heading FROM "readings" WHERE fleet='South' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY "name"`,
+			expected:    `{(readings.fleet=South,readings.name=truck_0)(readings.fleet=South,readings.name=truck_1)}#{velocity[float64],heading[float64]}#{empty}#{empty,empty}`,
+		},
+		{
+			name:        "ReadingsAvgFuelConsumption",
+			queryString: `SELECT mean(fuel_consumption) FROM "readings" WHERE model='G-2000' AND TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY "name",time(1h)`,
+			expected:    `{(readings.model=G-2000,readings.name=truck_0)(readings.model=G-2000,readings.name=truck_1)}#{fuel_consumption[float64]}#{empty}#{mean,1h}`,
+		},
+		{
+			name:        "ReadingsMaxVelocity",
+			queryString: `SELECT max(velocity) FROM "readings" WHERE model='G-2000' AND  TIME >= '2022-01-01T00:01:00Z' AND TIME < '2022-01-01T00:05:00Z' GROUP BY "name",time(1h)`,
+			expected:    `{(readings.model=G-2000,readings.name=truck_0)(readings.model=G-2000,readings.name=truck_1)}#{velocity[float64]}#{empty}#{max,1h}`,
+		},
+		{
+			name:        "ReadingsMaxVelocity",
+			queryString: `SELECT current_load,load_capacity FROM "diagnostics" WHERE ("name" = 'truck_1') AND TIME >= '2022-01-01T08:46:50Z' AND TIME < '2022-01-01T20:46:50Z' GROUP BY "name"`,
+			expected:    `{(diagnostics.name=truck_1)}#{current_load[float64],load_capacity[float64]}#{empty}#{empty,empty}`,
 		},
 	}
 	for _, tt := range tests {

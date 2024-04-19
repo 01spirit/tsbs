@@ -1015,7 +1015,7 @@ func TestTSCacheParameter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, MyDB, "s")
+			query := NewQuery(tt.queryString, DB, "s")
 			resp, err := c.Query(query)
 			if err != nil {
 				fmt.Println(err)
@@ -1139,7 +1139,7 @@ func TestTSCacheByteToValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, MyDB, "s")
+			query := NewQuery(tt.queryString, DB, "s")
 			resp, err := c.Query(query)
 			if err != nil {
 				fmt.Println(err)
@@ -1164,7 +1164,7 @@ func TestTSCacheByteToValue(t *testing.T) {
 
 func TestSplitResponseByTime(t *testing.T) {
 	queryString := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T03:20:00Z' and hostname='host_0'`
-	qs := NewQuery(queryString, MyDB, "s")
+	qs := NewQuery(queryString, DB, "s")
 	resp, _ := c.Query(qs)
 
 	//fmt.Println(resp.ToString())
@@ -1233,7 +1233,7 @@ func TestRepeatSetToStscache(t *testing.T) {
 	query1 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
 	query2 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:20Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
 
-	q1 := NewQuery(query1, MyDB, "s")
+	q1 := NewQuery(query1, DB, "s")
 	resp1, _ := c.Query(q1)
 	startTime, endTime := GetResponseTimeRange(resp1)
 	numOfTab := GetNumOfTable(resp1)
@@ -1252,7 +1252,7 @@ func TestRepeatSetToStscache(t *testing.T) {
 		log.Printf("STORED.")
 	}
 
-	q2 := NewQuery(query2, MyDB, "s")
+	q2 := NewQuery(query2, DB, "s")
 	resp2, _ := c.Query(q2)
 	startTime2, endTime2 := GetResponseTimeRange(resp2)
 	numOfTab2 := GetNumOfTable(resp2)
@@ -1292,7 +1292,7 @@ func TestIntegratedClient(t *testing.T) {
 	queryToBeSet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
 	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
 
-	qm := NewQuery(queryToBeSet, MyDB, "s")
+	qm := NewQuery(queryToBeSet, DB, "s")
 	respCache, _ := c.Query(qm)
 	startTime, endTime := GetResponseTimeRange(respCache)
 	numOfTab := GetNumOfTable(respCache)
@@ -1360,10 +1360,10 @@ func TestDualDB(t *testing.T) {
 	for true {
 
 		if index == 0 {
-			query1 := NewQuery(queryString1, MyDB, "s")
+			query1 := NewQuery(queryString1, DB, "s")
 			_, _ = c.Query(query1)
 		} else {
-			query2 := NewQuery(queryString2, MyDB, "s")
+			query2 := NewQuery(queryString2, DB, "s")
 			_, _ = cc.Query(query2)
 		}
 

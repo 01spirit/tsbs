@@ -29,7 +29,7 @@ func NewSingleGroupby(metrics, hosts, hours int) utils.QueryFillerMaker {
 }
 
 // Fill fills in the query.Query with query details
-func (d *SingleGroupby) Fill(q query.Query) query.Query {
+func (d *SingleGroupby) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := d.core.(SingleGroupbyFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(d.core)

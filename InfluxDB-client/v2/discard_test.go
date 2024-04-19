@@ -84,7 +84,7 @@ func TestGetSM(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "")
+			q := NewQuery(tt.queryString, DB, "")
 			response, err := c.Query(q)
 
 			if err != nil {
@@ -151,7 +151,7 @@ func TestGetSeperateSM(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "")
+			q := NewQuery(tt.queryString, DB, "")
 			resp, _ := c.Query(q)
 			_, tagPredicates := GetSP(tt.queryString, resp, TagKV)
 
@@ -259,7 +259,7 @@ func TestGetSFSGWithDataType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "s")
+			q := NewQuery(tt.queryString, DB, "s")
 			resp, err := c.Query(q)
 			if err != nil {
 				t.Fatalf(err.Error())
@@ -368,7 +368,7 @@ func TestGetSP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "s")
+			q := NewQuery(tt.queryString, DB, "s")
 			resp, _ := c.Query(q)
 			SP, tags := GetSP(tt.queryString, resp, TagKV)
 			//fmt.Println(SP)
@@ -593,7 +593,7 @@ func TestSemanticSegmentInstance(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, MyDB, "s")
+			query := NewQuery(tt.queryString, DB, "s")
 			resp, err := c.Query(query)
 			if err != nil {
 				fmt.Println(err)
@@ -682,7 +682,7 @@ func TestSemanticSegmentDBTest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, MyDB, "s")
+			query := NewQuery(tt.queryString, DB, "s")
 			resp, err := c.Query(query)
 			if err != nil {
 				fmt.Println(err)
@@ -792,7 +792,7 @@ func TestSemanticSegment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "")
+			q := NewQuery(tt.queryString, DB, "")
 			response, err := c.Query(q)
 			if err != nil {
 				log.Println(err)
@@ -866,7 +866,7 @@ func TestSeperateSemanticSegment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			q := NewQuery(tt.queryString, MyDB, "")
+			q := NewQuery(tt.queryString, DB, "")
 			resp, _ := c.Query(q)
 
 			sepSemanticSegment := SeperateSemanticSegment(tt.queryString, resp)

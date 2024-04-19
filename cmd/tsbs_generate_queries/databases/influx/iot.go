@@ -2,7 +2,6 @@ package influx
 
 import (
 	"fmt"
-	"github.com/timescale/tsbs/cmd/tsbs_generate_queries/uses/devops"
 	"strings"
 	"time"
 
@@ -10,6 +9,15 @@ import (
 	"github.com/timescale/tsbs/cmd/tsbs_generate_queries/uses/iot"
 	"github.com/timescale/tsbs/pkg/query"
 )
+
+var hour = time.Hour
+var day = 24 * time.Hour
+var week = 7 * day
+var month = 4 * week
+
+var ZipFianTimeDuration = []time.Duration{
+	hour, 2 * hour, 6 * hour, 12 * hour, day, 2 * day, 4 * day, week, 2 * week, month,
+}
 
 // IoT produces Influx-specific queries for all the iot query types.
 type IoT struct {
@@ -325,13 +333,107 @@ func tenMinutePeriods(minutesPerHour float64, duration time.Duration) int {
 	return int((durationMinutes - leftover) / 10)
 }
 
-func (i *IoT) SimpleIoT(qi query.Query) {
-	interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+func (i *IoT) SimpleIoT(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
 	influxql := fmt.Sprintf(
-		`SELECT latitude,longitude FROM readings WHERE device_version='v1.0' AND TIME >= '%s' AND time < '%s'`,
+		`SELECT latitude,longitude FROM readings WHERE TIME >= '%s' AND TIME < '%s'`,
 		interval.StartString(), interval.EndString())
 
 	humanLabel := "Influx simple IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) DiagnosticsLoad(qi query.Query, nTrucks int, zipNum int64, latestNum int64) {
+	//fmt.Printf("start:\t%s\tend:\t%s\n", i.Interval.StartString(), i.Interval.EndString())
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	fmt.Printf("start:\t%s\tend:\t%s\n", interval.StartString(), interval.EndString())
+	influxql := fmt.Sprintf(
+		`SELECT current_load,load_capacity FROM "diagnostics" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "name"`,
+		i.getTruckWhereString(nTrucks), interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx DiagnosticsLoad IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) DiagnosticsFuel(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT fuel_capacity,fuel_state,nominal_fuel_consumption FROM "diagnostics" WHERE TIME >= '%s' AND time < '%s' GROUP BY "name"`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx DiagnosticsFuel IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) ReadingsPosition(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '%s' AND TIME < '%s' GROUP BY "name"`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx ReadingsPosition IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) ReadingsFuel(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT fuel_capacity,fuel_consumption,nominal_fuel_consumption FROM "readings" WHERE TIME >= '%s' AND TIME < '%s' GROUP BY "name"`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx ReadingsFuel IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) ReadingsVelocity(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT velocity,heading FROM "readings" WHERE TIME >= '%s' AND TIME < '%s' GROUP BY "name"`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx ReadingsVelocity IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) ReadingsAvgFuelConsumption(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT mean(fuel_consumption) FROM "readings" WHERE TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(1h)`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx ReadingsAvgFuelConsumption IoT queries"
+	humanDesc := humanLabel
+
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) ReadingsMaxVelocity(qi query.Query, zipNum int64, latestNum int64) {
+	//interval := i.Interval.MustRandWindow(devops.DoubleGroupByDuration)
+	interval := i.Interval.DistributionRand(zipNum, latestNum)
+	influxql := fmt.Sprintf(
+		`SELECT max(velocity) FROM "readings" WHERE TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(1h)`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx ReadingsMaxVelocity IoT queries"
 	humanDesc := humanLabel
 
 	i.fillInQuery(qi, humanLabel, humanDesc, influxql)

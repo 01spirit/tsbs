@@ -7,22 +7,22 @@ import (
 )
 
 // SimpleIoT 自己实现的简单的查询
-type SimpleIoT struct {
+type ReadingsMaxVelocity struct {
 	core utils.QueryGenerator
 }
 
-func NewSimpleIoT(core utils.QueryGenerator) utils.QueryFiller {
-	return &SimpleIoT{
+func NewReadingsMaxVelocity(core utils.QueryGenerator) utils.QueryFiller {
+	return &ReadingsMaxVelocity{
 		core: core,
 	}
 }
 
 // Fill fills in the query.Query with query details.
-func (i *SimpleIoT) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
-	fc, ok := i.core.(SimpleIoTFiller)
+func (i *ReadingsMaxVelocity) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+	fc, ok := i.core.(ReadingsMaxVelocityFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.SimpleIoT(q, zipNum, latestNum)
+	fc.ReadingsMaxVelocity(q, zipNum, latestNum)
 	return q
 }

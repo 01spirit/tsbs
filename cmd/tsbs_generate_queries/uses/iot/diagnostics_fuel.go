@@ -6,24 +6,22 @@ import (
 	"github.com/timescale/tsbs/pkg/query"
 )
 
-// AvgLoad contains info for filling in avg load queries.
-type AvgLoad struct {
+type DiagnosticsFuel struct {
 	core utils.QueryGenerator
 }
 
-// NewAvgLoad creates a new avg load query filler.
-func NewAvgLoad(core utils.QueryGenerator) utils.QueryFiller {
-	return &AvgLoad{
+func NewDiagnosticsFuel(core utils.QueryGenerator) utils.QueryFiller {
+	return &DiagnosticsFuel{
 		core: core,
 	}
 }
 
 // Fill fills in the query.Query with query details.
-func (i *AvgLoad) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
-	fc, ok := i.core.(AvgLoadFiller)
+func (i *DiagnosticsFuel) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+	fc, ok := i.core.(DiagnosticsFuelFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.AvgLoad(q)
+	fc.DiagnosticsFuel(q, zipNum, latestNum)
 	return q
 }

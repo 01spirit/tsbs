@@ -19,7 +19,7 @@ func NewAvgVsProjectedFuelConsumption(core utils.QueryGenerator) utils.QueryFill
 }
 
 // Fill fills in the query.Query with query details.
-func (i *AvgVsProjectedFuelConsumption) Fill(q query.Query) query.Query {
+func (i *AvgVsProjectedFuelConsumption) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
 	fc, ok := i.core.(AvgVsProjectedFuelConsumptionFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
