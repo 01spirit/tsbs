@@ -20,7 +20,7 @@ const (
 )
 
 var ZipFianTimeDuration = []time.Duration{
-	hour, 2 * hour, 6 * hour, 12 * hour, day, 2 * day, 4 * day, week, 2 * week, month,
+	day, 12 * hour, 6 * hour, 2 * hour, hour, 2 * day, 4 * day, week, 2 * week, month,
 }
 
 // TimeInterval represents an interval of time in UTC. That is, regardless of
@@ -116,7 +116,7 @@ func (ti *TimeInterval) MustRandWindow(window time.Duration) *TimeInterval {
 func (ti *TimeInterval) DistributionRand(zipNum int64, latestNum int64) *TimeInterval {
 	duration := ZipFianTimeDuration[zipNum].Nanoseconds() // Zipfian分布生成时间区间
 	totalStartTime := ti.start.UnixNano()                 // 启动项参数中设置的整体查询的 起始时间 和 结束时间
-	totalEndTime := ti.end.UnixNano()
+	totalEndTime := ti.end.UnixNano() - 1
 	//fmt.Println(ti.end)
 
 	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() / 2) * (1000 - latestNum - 1)) // Latest分布生成结束时间	默认从整体结束时间开始向前划分一千个时间区间，每个半小时

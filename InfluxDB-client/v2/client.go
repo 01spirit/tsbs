@@ -11,6 +11,8 @@ import (
 	fatcache "github.com/bradfitz/gomemcache/memcache"
 	stscache "github.com/timescale/tsbs/InfluxDB-client/memcache"
 	"github.com/timescale/tsbs/InfluxDB-client/models"
+	"sync"
+
 	//"github.com/influxdata/influxdb1-client/models"
 	"io"
 	"io/ioutil"
@@ -29,23 +31,25 @@ type ContentEncoding string
 
 // 连接数据库
 var c, err = NewHTTPClient(HTTPConfig{
-	Addr: "http://10.170.48.244:8086",
+	Addr: "http://192.168.1.103:8086",
+	//Addr: "http://10.170.48.244:8086",
 	//Addr: "http://localhost:8086",
 })
 
-var cc, err2 = NewHTTPClient(HTTPConfig{
-	Addr: "http://10.170.48.244:8086",
-	//Addr: "http://localhost:8086",
-})
+//var cc, err2 = NewHTTPClient(HTTPConfig{
+//	Addr: "http://10.170.48.244:8086",
+//	//Addr: "http://localhost:8086",
+//})
 
 // 连接cache
-var stscacheConn = stscache.New("10.170.41.179:11212")
+// var stscacheConn = stscache.New("10.170.41.179:11212")
+//var stscacheConn = stscache.New("192.168.1.101:11211")
 
-//var stscacheConn = stscache.New("10.170.65.66:11214")
+var stscacheConn = stscache.New("10.170.65.66:11212")
 
 //var stscacheConn = stscache.New("10.170.48.244:11214")
 
-var fatcacheConn = fatcache.New("localhost:11213")
+var fatcacheConn = fatcache.New("192.168.1.101:11211")
 
 // 数据库中所有表的tag和field
 var TagKV = GetTagKV(c, DB)
@@ -1261,6 +1265,7 @@ func SplitResponseValuesByTime(queryString string, resp *Response, timeSize stri
 
 // 按时间尺度分块，存入 cache
 func SetToFatache(queryString string, timeSize string) {
+	log.Println("s")
 	semanticSegment := GetSemanticSegment(queryString)
 	qs := NewQuery(queryString, DB, "s")
 	resp, _ := c.Query(qs)
@@ -1394,12 +1399,15 @@ func IntegratedClient(queryString string) {
 	queryTemplate := GetQueryTemplate(queryString) // 时间用 '?' 代替
 
 	/* 从查询模版获取语义段，或构造语义段并存入查询模版 */
+	var mu sync.Mutex
 	semanticSegment := ""
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 		semanticSegment = GetSemanticSegment(queryString)
-		log.Println("ss")
+		log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
 		/* 存入全局 map */
+		mu.Lock()
 		QueryTemplates[queryTemplate] = semanticSegment
+		mu.Unlock()
 	} else {
 		semanticSegment = ss
 	}
@@ -1416,6 +1424,10 @@ func IntegratedClient(queryString string) {
 		if !ResponseIsEmpty(resp) {
 			//ss := GetSemanticSegment(queryString)
 			st, et := GetResponseTimeRange(resp)
+			//if st == -1 || et == -1 {
+			//	log.Println("EMPTY.")
+			//	return
+			//}
 			numOfTab := GetNumOfTable(resp)
 			remainValues := ResponseToByteArray(resp, queryString)
 
@@ -1465,6 +1477,8 @@ func IntegratedClient(queryString string) {
 
 		/* 把剩余数据存入 cache */
 		if !ResponseIsEmpty(remainResponse) {
+			log.Printf("partially GET.")
+
 			//remainSemanticSegment := GetSemanticSegment(remainQuery)
 			remainSemanticSegment := semanticSegment
 			remain_start_time, remain_end_time := GetResponseTimeRange(remainResponse)
@@ -1480,7 +1494,7 @@ func IntegratedClient(queryString string) {
 			} else {
 				log.Printf("STORED.")
 			}
-			log.Printf("partially GET.")
+
 		} else {
 			log.Printf("GET.")
 		}

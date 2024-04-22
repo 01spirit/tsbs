@@ -130,10 +130,10 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	//_, err = Workloads()
 
 	log.Println(string(q.RawQuery))
-	//client.IntegratedClient(string(q.RawQuery))
+	client.IntegratedClient(string(q.RawQuery))
 
-	query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
-	_, err = c.Query(query)
+	//query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
+	//_, err = c.Query(query)
 	//resp, err := c.Query(query)
 	//byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
 	//log.Println(resp.ToString())

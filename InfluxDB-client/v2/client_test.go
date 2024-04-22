@@ -1180,20 +1180,27 @@ func TestSplitResponseByTime(t *testing.T) {
 }
 
 func TestSetToFatCache(t *testing.T) {
-	queryString := `select usage_guest from test..cpu where time >= '2022-01-02T09:40:00Z' and time < '2022-01-02T10:10:00Z' and hostname='host_0'`
+	//queryString := `SELECT latitude,longitude,elevation FROM "readings" WHERE "name"='truck_1' AND TIME >= '2021-12-31T12:00:00Z' AND TIME <= '2022-01-01T12:00:00Z' GROUP BY "name"`
+	queryString := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-31T12:00:00Z' AND TIME <= '2022-01-01T12:00:00Z' GROUP BY "name"`
 
-	SetToFatache(queryString, TimeSize)
-	st, et := GetQueryTimeRange(queryString)
-	ss := GetSemanticSegment(queryString)
-	ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
-	log.Printf("\tget:%s\n", ss)
-	items, err := fatcacheConn.Get(ss)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("GET.")
-		log.Println("\tget byte length:", len(items.Value))
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go SetToFatache(queryString, TimeSize)
 	}
+	wg.Wait()
+	//SetToFatache(queryString, TimeSize)
+	//st, et := GetQueryTimeRange(queryString)
+	//ss := GetSemanticSegment(queryString)
+	//ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
+	//log.Printf("\tget:%s\n", ss)
+	//items, err := fatcacheConn.Get(ss)
+	//if err != nil {
+	//	log.Fatal(err)
+	//} else {
+	//	log.Println("GET.")
+	//	log.Println("\tget byte length:", len(items.Value))
+	//}
 
 }
 
@@ -1289,10 +1296,10 @@ func TestRepeatSetToStscache(t *testing.T) {
 }
 
 func TestIntegratedClient(t *testing.T) {
-	queryToBeSet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
-	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
+	queryToBeSet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
+	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
 
-	qm := NewQuery(queryToBeSet, DB, "s")
+	qm := NewQuery(queryToBeSet, "devops", "s")
 	respCache, _ := c.Query(qm)
 	startTime, endTime := GetResponseTimeRange(respCache)
 	numOfTab := GetNumOfTable(respCache)
@@ -1335,6 +1342,101 @@ func TestIntegratedClient(t *testing.T) {
 
 }
 
+func TestIntegratedClientIOT(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE ("name"='truck_0') AND TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T01:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE ("name"='truck_0') AND TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T02:00:00Z' GROUP BY "name"`
+
+	qm := NewQuery(queryToBeSet, "iot", "s")
+	respCache, _ := c.Query(qm)
+	startTime, endTime := GetResponseTimeRange(respCache)
+	numOfTab := GetNumOfTable(respCache)
+
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	queryTemplate := GetQueryTemplate(queryToBeSet)
+	QueryTemplates[queryTemplate] = semanticSegment
+	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
+	fmt.Println(respCache.ToString())
+	//fmt.Println(respCacheByte)
+
+	/* 向 stscache set 0-20 的数据 */
+	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+	if err != nil {
+		log.Fatalf("Error setting value: %v", err)
+	} else {
+		log.Printf("out STORED.")
+	}
+
+	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
+	IntegratedClient(queryToBeGet)
+
+	/* 向 cache get 0-40 的数据 */
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	values, _, err := stscacheConn.Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("out GET.")
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	convertedResponse := ByteArrayToResponse(values)
+	crst, cret := GetResponseTimeRange(convertedResponse)
+	fmt.Println(convertedResponse.ToString())
+	fmt.Println(crst)
+	fmt.Println(cret)
+
+}
+
+func TestIntegratedClientIOT100(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T08:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T00:20:00Z' GROUP BY "name"`
+
+	qm := NewQuery(queryToBeSet, "iot", "s")
+	respCache, _ := c.Query(qm)
+	startTime, endTime := GetResponseTimeRange(respCache)
+	numOfTab := GetNumOfTable(respCache)
+
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	queryTemplate := GetQueryTemplate(queryToBeSet)
+	QueryTemplates[queryTemplate] = semanticSegment
+	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
+	//fmt.Println(respCache.ToString())
+	//fmt.Println(respCacheByte)
+
+	/* 向 stscache set 0-20 的数据 */
+	log.Printf("len:%d\n", len(respCacheByte))
+	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+	if err != nil {
+		log.Fatalf("Error setting value: %v", err)
+	} else {
+		log.Printf("out STORED.")
+	}
+
+	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
+	IntegratedClient(queryToBeGet)
+
+	/* 向 cache get 0-40 的数据 */
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	values, _, err := stscacheConn.Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("out GET.")
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	convertedResponse := ByteArrayToResponse(values)
+	crst, cret := GetResponseTimeRange(convertedResponse)
+	//fmt.Println(convertedResponse.ToString())
+	fmt.Println(crst)
+	fmt.Println(cret)
+
+}
+
 func BenchmarkIntegratedClient(b *testing.B) {
 	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
 	semanticSegment := GetSemanticSegment(queryToBeGet)
@@ -1352,26 +1454,26 @@ func BenchmarkIntegratedClient(b *testing.B) {
 	}
 }
 
-func TestDualDB(t *testing.T) {
-	queryString1 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
-	queryString2 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
-
-	index := 0
-	for true {
-
-		if index == 0 {
-			query1 := NewQuery(queryString1, DB, "s")
-			_, _ = c.Query(query1)
-		} else {
-			query2 := NewQuery(queryString2, DB, "s")
-			_, _ = cc.Query(query2)
-		}
-
-		// 用异或运算在 0 和 1 之间切换
-		index = index ^ 1
-	}
-
-}
+//func TestDualDB(t *testing.T) {
+//	queryString1 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
+//	queryString2 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
+//
+//	index := 0
+//	for true {
+//
+//		if index == 0 {
+//			query1 := NewQuery(queryString1, DB, "s")
+//			_, _ = c.Query(query1)
+//		} else {
+//			query2 := NewQuery(queryString2, DB, "s")
+//			_, _ = cc.Query(query2)
+//		}
+//
+//		// 用异或运算在 0 和 1 之间切换
+//		index = index ^ 1
+//	}
+//
+//}
 
 // done 根据查询时向 client.Query() 传入的时间的参数不同，会返回string和int64的不同类型的时间戳
 /*

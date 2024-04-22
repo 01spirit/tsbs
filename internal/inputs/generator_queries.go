@@ -228,9 +228,6 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 	latestNums := make([]int64, 0)
 	rz := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rl := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < int(c.Limit); i++ {
-
-	}
 
 	var mu sync.Mutex
 	random := func() {

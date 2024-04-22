@@ -29,7 +29,7 @@ var (
 )
 
 var c, err = client.NewHTTPClient(client.HTTPConfig{
-	Addr: "http://10.170.48.244:8086",
+	Addr: "http://192.168.1.103:8086",
 	//Addr: "http://localhost:8086",
 })
 

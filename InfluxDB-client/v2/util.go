@@ -31,6 +31,9 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 	var ist int64
 	var iet int64
 
+	if ResponseIsEmpty(resp) {
+		return -1, -1
+	}
 	minStartTime = math.MaxInt64
 	maxEndTime = 0
 	for s := range resp.Results[0].Series {

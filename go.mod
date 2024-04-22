@@ -1,10 +1,10 @@
 module github.com/timescale/tsbs
 
 go 1.21.4
+
 //go 1.14
 
 require (
-	github.com/01spirit/InfluxDB-client v1.0.0
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0
 	github.com/SiriDB/go-siridb-connector v0.0.0-20190110105621-86b34c44c921
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
