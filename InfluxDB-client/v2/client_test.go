@@ -1296,8 +1296,8 @@ func TestRepeatSetToStscache(t *testing.T) {
 }
 
 func TestIntegratedClient(t *testing.T) {
-	queryToBeSet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
-	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
+	queryToBeSet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T01:00:00Z' and time < '2022-01-01T02:00:00Z' and hostname='host_0'`
+	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from devops..cpu where time >= '2022-01-01T01:00:00Z' and time < '2022-01-01T03:00:00Z' and hostname='host_0'`
 
 	qm := NewQuery(queryToBeSet, "devops", "s")
 	respCache, _ := c.Query(qm)
@@ -1308,8 +1308,8 @@ func TestIntegratedClient(t *testing.T) {
 	queryTemplate := GetQueryTemplate(queryToBeSet)
 	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
-	fmt.Println(respCache.ToString())
-	//fmt.Println(respCacheByte)
+	//fmt.Println(respCache.ToString())
+	log.Printf("bytes to be set:%d\n", len(respCacheByte))
 
 	/* 向 stscache set 0-20 的数据 */
 	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
@@ -1331,12 +1331,13 @@ func TestIntegratedClient(t *testing.T) {
 		log.Fatalf("Error getting value: %v", err)
 	} else {
 		log.Printf("out GET.")
+		log.Printf("bytes get:%d\n", len(values))
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
 	convertedResponse := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
-	fmt.Println(convertedResponse.ToString())
+	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
 	fmt.Println(cret)
 
@@ -1355,8 +1356,8 @@ func TestIntegratedClientIOT(t *testing.T) {
 	queryTemplate := GetQueryTemplate(queryToBeSet)
 	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
-	fmt.Println(respCache.ToString())
-	//fmt.Println(respCacheByte)
+	//fmt.Println(respCache.ToString())
+	log.Printf("bytes to be set:%d\n", len(respCacheByte))
 
 	/* 向 stscache set 0-20 的数据 */
 	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
@@ -1378,20 +1379,21 @@ func TestIntegratedClientIOT(t *testing.T) {
 		log.Fatalf("Error getting value: %v", err)
 	} else {
 		log.Printf("out GET.")
+		log.Printf("bytes get:%d\n", len(values))
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
 	convertedResponse := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
-	fmt.Println(convertedResponse.ToString())
+	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
 	fmt.Println(cret)
 
 }
 
 func TestIntegratedClientIOT100(t *testing.T) {
-	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T08:00:00Z' GROUP BY "name"`
-	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T00:20:00Z' GROUP BY "name"`
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
 
 	qm := NewQuery(queryToBeSet, "iot", "s")
 	respCache, _ := c.Query(qm)
@@ -1403,7 +1405,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
 	//fmt.Println(respCache.ToString())
-	//fmt.Println(respCacheByte)
+	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
 
 	/* 向 stscache set 0-20 的数据 */
 	log.Printf("len:%d\n", len(respCacheByte))
@@ -1426,6 +1428,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 		log.Fatalf("Error getting value: %v", err)
 	} else {
 		log.Printf("out GET.")
+		log.Printf("bytes get:%d\n", len(values))
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
@@ -1434,6 +1437,195 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
 	fmt.Println(cret)
+
+}
+
+func TestIntegratedClientIOTBehindHit(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-12-01T01:00:00Z' AND TIME <= '2021-12-02T03:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-12-01T00:00:00Z' AND TIME <= '2021-12-02T03:00:00Z' GROUP BY "name"`
+
+	qm := NewQuery(queryToBeSet, "iot", "s")
+	respCache, _ := c.Query(qm)
+	startTime, endTime := GetResponseTimeRange(respCache)
+	numOfTab := GetNumOfTable(respCache)
+
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	queryTemplate := GetQueryTemplate(queryToBeSet)
+	QueryTemplates[queryTemplate] = semanticSegment
+	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
+	//fmt.Println(respCache.ToString())
+	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
+
+	/* 向 stscache set 0-20 的数据 */
+	log.Printf("len:%d\n", len(respCacheByte))
+	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+	if err != nil {
+		log.Fatalf("Error setting value: %v", err)
+	} else {
+		log.Printf("out STORED.")
+	}
+
+	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
+	IntegratedClient(queryToBeGet)
+
+	/* 向 cache get 0-40 的数据 */
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	values, _, err := stscacheConn.Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("out GET.")
+		log.Printf("bytes get:%d\n", len(values))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	convertedResponse := ByteArrayToResponse(values)
+	crst, cret := GetResponseTimeRange(convertedResponse)
+	//fmt.Println(convertedResponse.ToString())
+	fmt.Println(crst)
+	fmt.Println(cret)
+
+}
+
+func TestIntegratedClientIOT2(t *testing.T) {
+	query1 := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T16:30:00Z' AND TIME <= '2021-12-31T16:30:00Z' GROUP BY "name"`
+	query2 := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T10:30:00Z' AND TIME < '2021-12-29T16:30:00Z' GROUP BY "name"`
+	query3 := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-28T16:30:00Z' AND TIME <= '2021-12-29T16:30:00Z' GROUP BY "name"`
+	qm := NewQuery(query1, "iot", "s")
+	respCache, _ := c.Query(qm)
+	startTime, endTime := GetResponseTimeRange(respCache)
+	numOfTab := GetNumOfTable(respCache)
+
+	semanticSegment := GetSemanticSegment(query1)
+	queryTemplate := GetQueryTemplate(query1)
+	QueryTemplates[queryTemplate] = semanticSegment
+	respCacheByte := ResponseToByteArray(respCache, query1)
+	//fmt.Println(respCache.ToString())
+	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
+
+	/* 向 stscache set 0-20 的数据 */
+	log.Printf("len:%d\n", len(respCacheByte))
+	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: respCacheByte, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+	if err != nil {
+		log.Fatalf("Error setting value: %v", err)
+	} else {
+		log.Printf("STORED.")
+	}
+
+	q2 := NewQuery(query2, "iot", "s")
+	respCache2, _ := c.Query(q2)
+	startTime2, endTime2 := GetResponseTimeRange(respCache2)
+	numOfTab2 := GetNumOfTable(respCache2)
+
+	semanticSegment2 := GetSemanticSegment(query2)
+	queryTemplate2 := GetQueryTemplate(query2)
+	QueryTemplates[queryTemplate2] = semanticSegment2
+	respCacheByte2 := ResponseToByteArray(respCache2, query2)
+	//fmt.Println(respCache.ToString())
+	fmt.Printf("bytes to be set:%d\n", len(respCacheByte2))
+
+	log.Printf("len:%d\n", len(respCacheByte2))
+	err = stscacheConn.Set(&stscache.Item{Key: semanticSegment2, Value: respCacheByte2, Time_start: startTime2, Time_end: endTime2, NumOfTables: numOfTab2})
+	if err != nil {
+		log.Fatalf("Error setting value: %v", err)
+	} else {
+		log.Printf("STORED.")
+	}
+
+	/* 向 cache get 0-40 的数据 */
+	qgst, qget := GetQueryTimeRange(query3)
+	values, _, err := stscacheConn.Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("out GET.")
+		log.Printf("bytes get:%d\n", len(values))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	convertedResponse := ByteArrayToResponse(values)
+	crst, cret := GetResponseTimeRange(convertedResponse)
+	//fmt.Println(convertedResponse.ToString())
+	fmt.Println(crst)
+	fmt.Println(cret)
+}
+
+func TestMultiThreadSTsCache(t *testing.T) {
+	//queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T00:01:00Z' GROUP BY "name"`
+
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go func() {
+			IntegratedClient(queryToBeGet)
+			//query := NewQuery(queryToBeGet, "iot", "s")
+			//resp, _ := c.Query(query)
+			//ss := GetSemanticSegment(queryToBeGet)
+			//st, et := GetQueryTimeRange(queryToBeGet)
+			//numOfTable := len(resp.Results[0].Series)
+			//val := ResponseToByteArray(resp, queryToBeGet)
+			//err := stscacheConn.Set(&stscache.Item{
+			//	Key:         ss,
+			//	Value:       val,
+			//	Time_start:  st,
+			//	Time_end:    et,
+			//	NumOfTables: int64(numOfTable),
+			//})
+			//if err != nil {
+			//	log.Fatal(err)
+			//}
+			defer wg.Done()
+		}()
+		//log.Println(i)
+	}
+	wg.Wait()
+}
+
+func TestSetSTsCache(t *testing.T) {
+	//queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
+	//queryToBeGet := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T11:00:00Z' AND TIME <= '2021-12-30T11:00:00Z' GROUP BY "name"`
+
+	queries := []string{
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-27T04:00:00Z' AND TIME <= '2021-12-28T04:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-30T20:30:00Z' AND TIME <= '2021-12-31T20:30:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-21T06:00:00Z' AND TIME <= '2021-12-21T08:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-31T06:00:00Z' AND TIME <= '2021-12-31T12:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-30T20:00:00Z' AND TIME <= '2021-12-31T20:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-18T07:00:00Z' AND TIME <= '2021-12-18T08:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T22:30:00Z' AND TIME <= '2021-12-30T22:30:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T22:30:00Z' AND TIME <= '2021-12-30T22:30:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-30T18:30:00Z' AND TIME <= '2021-12-31T06:30:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-31T14:30:00Z' AND TIME <= '2021-12-31T20:30:00Z' GROUP BY "name"`,
+		//`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-03T23:00:00Z' AND TIME <= '2021-12-31T23:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-24T04:00:00Z' AND TIME <= '2021-12-24T16:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-31T00:00:00Z' AND TIME <= '2022-01-01T00:00:00Z' GROUP BY "name"`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-29T11:00:00Z' AND TIME <= '2021-12-30T11:00:00Z' GROUP BY "name"`,
+	}
+
+	for _, queryString := range queries {
+		log.Println(queryString)
+		query := NewQuery(queryString, "iot", "s")
+		resp, _ := c.Query(query)
+		ss := GetSemanticSegment(queryString)
+		st, et := GetQueryTimeRange(queryString)
+		numOfTable := len(resp.Results[0].Series)
+		val := ResponseToByteArray(resp, queryString)
+		err := stscacheConn.Set(&stscache.Item{
+			Key:         ss,
+			Value:       val,
+			Time_start:  st,
+			Time_end:    et,
+			NumOfTables: int64(numOfTable),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 }
 

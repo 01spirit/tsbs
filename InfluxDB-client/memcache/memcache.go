@@ -65,14 +65,16 @@ var (
 
 const (
 	// DefaultTimeout is the default socket read/write timeout.		默认超时时间
-	DefaultTimeout = 500 * time.Millisecond
+	//DefaultTimeout = 500 * time.Millisecond
+	DefaultTimeout = 100000 * time.Millisecond
 
 	// DefaultMaxIdleConns is the default maximum number of idle connections	默认最多有两个闲置的连接
 	// kept for any single address.
-	DefaultMaxIdleConns = 2
+	//DefaultMaxIdleConns = 2
+	DefaultMaxIdleConns = 100
 )
 
-const buffered = 8 // arbitrary buffered channel size, for readability
+const buffered = 80 // arbitrary buffered channel size, for readability
 
 // resumableError returns true if err is only a protocol-level cache error.
 // This is used to determine whether a server connection should
@@ -728,12 +730,12 @@ func (c *Client) populateOne(rw *bufio.ReadWriter, verb string, item *Item) erro
 	if err != nil {
 		return err
 	}
-	if num, err := rw.Write(item.Value); err != nil { //命令的第二行，表示具体的数据	如：zyx
+	if _, err := rw.Write(item.Value); err != nil { //命令的第二行，表示具体的数据	如：zyx
 		log.Printf("len of value:%d\n", len(item.Value))
-		log.Printf("write:%d\n", num)
+		//log.Printf("write:%d\n", num)
 		return err
 	} else {
-		log.Printf("write:%d\n", num)
+		//log.Printf("write:%d\n", num)
 	}
 	if _, err := rw.Write(crlf); err != nil { //向第二行写入换行符，表示命令结束
 		return err

@@ -43,9 +43,11 @@ var c, err = NewHTTPClient(HTTPConfig{
 
 // 连接cache
 // var stscacheConn = stscache.New("10.170.41.179:11212")
-//var stscacheConn = stscache.New("192.168.1.101:11211")
+var stscacheConn = stscache.New("192.168.1.101:11211")
 
-var stscacheConn = stscache.New("10.170.65.66:11212")
+//var stscacheConn = stscache.New("10.170.42.5:11211")
+
+//var stscacheConn = stscache.New("10.170.65.66:11212")
 
 //var stscacheConn = stscache.New("10.170.48.244:11214")
 
@@ -58,6 +60,8 @@ var Fields = GetFieldKeys(c, DB)
 // var IOTTagKV = GetTagKV(c, IOTDB)
 // var IOTFields = GetFieldKeys(c, IOTDB)
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
+
+var TotalByteLength = 0
 
 // 结果转换成字节数组时string类型占用字节数
 const STRINGBYTELENGTH = 32
@@ -1391,7 +1395,9 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 	4. 得到要向数据库查询的时间范围，带入模版，向数据库查询剩余数据
 	5. 客户端把剩余数据存入 cache
 */
-func IntegratedClient(queryString string) {
+var mu sync.Mutex
+
+func IntegratedClient(queryString string) *Response {
 	/* 原始查询语句的时间范围 */
 	startTime, endTime := GetQueryTimeRange(queryString) // 当查询的时间只有一半时，另一个值为 -1; 当查询时间为 "=" 时，两值相等
 
@@ -1399,29 +1405,31 @@ func IntegratedClient(queryString string) {
 	queryTemplate := GetQueryTemplate(queryString) // 时间用 '?' 代替
 
 	/* 从查询模版获取语义段，或构造语义段并存入查询模版 */
-	var mu sync.Mutex
+	mu.Lock()
 	semanticSegment := ""
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 		semanticSegment = GetSemanticSegment(queryString)
-		log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
+		//log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
 		/* 存入全局 map */
-		mu.Lock()
+
 		QueryTemplates[queryTemplate] = semanticSegment
-		mu.Unlock()
+
 	} else {
 		semanticSegment = ss
 	}
+	mu.Unlock()
 
 	/* 向 cache 查询数据 */
 	values, _, err := stscacheConn.Get(semanticSegment, startTime, endTime)
 	if err != nil { // 缓存未命中
-		log.Printf("Key not found in cache")
+		log.Printf("Key not found in cache: %v", err)
 
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
 		resp, _ := c.Query(q)
 
 		if !ResponseIsEmpty(resp) {
+
 			//ss := GetSemanticSegment(queryString)
 			st, et := GetResponseTimeRange(resp)
 			//if st == -1 || et == -1 {
@@ -1430,7 +1438,7 @@ func IntegratedClient(queryString string) {
 			//}
 			numOfTab := GetNumOfTable(resp)
 			remainValues := ResponseToByteArray(resp, queryString)
-
+			//go func() {
 			/* 存入 cache */
 			err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			if err != nil {
@@ -1438,31 +1446,50 @@ func IntegratedClient(queryString string) {
 			} else {
 				log.Printf("STORED.")
 			}
+			//}()
+
 		}
 		//} else if err != nil { // 异常
 		//	log.Fatalf("Error getting value: %v", err)
+
+		return resp
 	} else { // 缓存部分命中或完全命中
 
+		log.Printf("value length:%d\n", len(values))
 		/* 把查询结果从字节流转换成 Response 结构 */
+		// todo 	values为空时的处理、多线程的原子性
 		convertedResponse := ByteArrayToResponse(values)
 		//fmt.Println(convertedResponse.ToString())
 
 		/* 从cache返回的数据的时间范围 */
 		recv_start_time, recv_end_time := GetResponseTimeRange(convertedResponse)
+		if recv_start_time == -1 || recv_end_time == -1 {
+			q := NewQuery(queryString, DB, "s")
+			resp, _ := c.Query(q)
 
+			return resp
+		}
+		//log.Printf("recv_start_time:%d\n", recv_start_time)
+		//log.Printf("recv_end_time:%d\n", recv_end_time)
+
+		// 向数据库查询剩余数据的最小时间间隔
+		RemainTimeInterval := time.Minute.Nanoseconds() / 1000000000
 		/* 向数据库查询剩余数据 	暂时只考虑一侧未命中的情况，不考虑两个时间范围都未命中的情况*/
 		var remainResponse *Response
 		var remainQuery string
-		if recv_start_time > startTime { // 起始时间未命中，结束时间命中
+		if recv_start_time > startTime && recv_start_time-startTime > RemainTimeInterval { // 起始时间未命中，结束时间命中
 			/* 把 int64 类型的时间转换成 RFC3339 格式的时间戳，替换到查询模版上 */
 			remain_start_time_string := TimeInt64ToString(startTime)
 			remain_end_time_string := TimeInt64ToString(recv_start_time)
-			remainQuery = strings.Replace(queryTemplate, "?", remain_start_time_string, 1)
-			remainQuery = strings.Replace(remainQuery, "?", remain_end_time_string, 1)
+			remainQuery = strings.Replace(queryTemplate, "?", "'"+remain_start_time_string+"'", 1)
+			remainQuery = strings.Replace(remainQuery, "?", "'"+remain_end_time_string+"'", 1)
 
+			log.Printf("startTime:%d\n", startTime)
+			log.Printf("remain_start_time_string:%s\n", remain_start_time_string)
+			log.Printf("remain query:%s\n", remainQuery)
 			q := NewQuery(remainQuery, DB, "s")
 			remainResponse, _ = c.Query(q)
-		} else if recv_end_time < endTime { // 起始时间命中，结束时间未命中
+		} else if recv_end_time < endTime && endTime-recv_end_time > RemainTimeInterval { // 起始时间命中，结束时间未命中
 			remain_start_time_string := TimeInt64ToString(recv_end_time)
 			remain_end_time_string := TimeInt64ToString(endTime)
 
@@ -1470,6 +1497,11 @@ func IntegratedClient(queryString string) {
 			remainQuery = strings.Replace(queryTemplate, "?", "'"+remain_start_time_string+"'", 1)
 			remainQuery = strings.Replace(remainQuery, "?", "'"+remain_end_time_string+"'", 1)
 
+			log.Printf("startTime:%d\n", startTime)
+			log.Printf("==================================================================\n")
+			log.Printf("remain_start_time_string:%s\n", remain_start_time_string)
+			log.Printf("remain query:%s\n", remainQuery)
+			log.Printf("==================================================================\n")
 			/* 向数据库查询剩余数据 */
 			q := NewQuery(remainQuery, DB, "s")
 			remainResponse, _ = c.Query(q)
@@ -1479,24 +1511,37 @@ func IntegratedClient(queryString string) {
 		if !ResponseIsEmpty(remainResponse) {
 			log.Printf("partially GET.")
 
+			// 异步写入剩余数据
+
 			//remainSemanticSegment := GetSemanticSegment(remainQuery)
 			remainSemanticSegment := semanticSegment
+			// todo 从剩余查询中获取时间范围
 			remain_start_time, remain_end_time := GetResponseTimeRange(remainResponse)
+			//remain_start_time, remain_end_time := GetQueryTimeRange(remainQuery)
 			numOfTab := GetNumOfTable(remainResponse)
 			remainValues := ResponseToByteArray(remainResponse, remainQuery)
 
 			//fmt.Println("To be set again:")
 			//fmt.Println(remainResponse.ToString())
-
+			//go func() {
 			err = stscacheConn.Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			if err != nil {
 				log.Fatalf("Error setting value: %v", err)
 			} else {
 				log.Printf("STORED.")
 			}
+			//}()
 
+			resultResponse := Merge("1h", convertedResponse, remainResponse)
+			if len(resultResponse) > 0 {
+				return resultResponse[0]
+			}
+			return convertedResponse
 		} else {
 			log.Printf("GET.")
+			//log.Printf("bytes get:%d\n", len(values))
+
+			return convertedResponse
 		}
 
 	}

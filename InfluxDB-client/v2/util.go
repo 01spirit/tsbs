@@ -15,7 +15,7 @@ import (
 // ResponseIsEmpty 判断结果是否为空
 func ResponseIsEmpty(resp *Response) bool {
 	/* 以下情况之一表示结果为空，返回 true */
-	return resp == nil || resp.Results == nil || len(resp.Results[0].Series) == 0 || len(resp.Results[0].Series[0].Values) == 0
+	return resp == nil || resp.Results == nil || len(resp.Results[0].Series) == 0 || len(resp.Results[0].Series[0].Values) == 0 || len(resp.Results[0].Series[0].Values[0]) == 0
 }
 
 // GetNumOfTable 获取查询结果中表的数量
@@ -38,7 +38,12 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 	maxEndTime = 0
 	for s := range resp.Results[0].Series {
 		/* 获取一张表的起止时间（string） */
-		length := len(resp.Results[0].Series[s].Values)      //一个结果表中有多少条记录
+		length := len(resp.Results[0].Series[s].Values) //一个结果表中有多少条记录
+		//log.Printf("---------------------------\n")
+		//log.Printf("series:%d\n", s)
+		//log.Printf("name:%s\n", resp.Results[0].Series[s].Tags)
+		//log.Printf("values:%d\n", len(resp.Results[0].Series[s].Values))
+		//log.Printf("values:%d\n", len(resp.Results[0].Series[s].Values[0]))
 		start := resp.Results[0].Series[s].Values[0][0]      // 第一条记录的时间		第一个查询结果
 		end := resp.Results[0].Series[s].Values[length-1][0] // 最后一条记录的时间
 

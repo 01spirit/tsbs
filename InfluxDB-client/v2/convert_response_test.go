@@ -551,8 +551,10 @@ func TestTimeStringToInt64(t *testing.T) {
 }
 
 func TestTimeInt64ToString(t *testing.T) {
-	timeIntegers := []int64{1566086400, 946684800, 9183110400}
-	expected := []string{"2019-08-18T00:00:00Z", "2000-01-01T00:00:00Z", "2261-01-01T00:00:00Z"}
+	timeIntegers := []int64{1566086400, 946684800, 9183110400, 1640709000, -1,
+		1640795430, 1640987960, 1640795400, 1640795390}
+	expected := []string{"2019-08-18T00:00:00Z", "2000-01-01T00:00:00Z", "2261-01-01T00:00:00Z", "2021-12-28T16:30:00Z", "1969-12-31T23:59:59Z",
+		"2021-12-29T16:30:30Z", "2021-12-31T21:59:20Z", "2021-12-29T16:30:00Z", "2021-12-29T16:29:50Z"}
 	for i := range timeIntegers {
 		numberStr := TimeInt64ToString(timeIntegers[i])
 		if numberStr != expected[i] {

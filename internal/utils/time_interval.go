@@ -20,8 +20,12 @@ const (
 )
 
 var ZipFianTimeDuration = []time.Duration{
-	day, 12 * hour, 6 * hour, 2 * hour, hour, 2 * day, 4 * day, week, 2 * week, month,
+	1 * hour, 2 * hour, 3 * hour, 6 * hour, 12 * hour, 16 * hour, day, 2 * day, 3 * day, 4 * day,
 }
+
+//var ZipFianTimeDuration = []time.Duration{
+//	day, 12 * hour, 6 * hour, 2 * hour, hour, 2 * day, 3 * day, 4 * day, 5 * day, week,
+//}
 
 // TimeInterval represents an interval of time in UTC. That is, regardless of
 // what timezone(s) are used for the beginning and end times, they will be
