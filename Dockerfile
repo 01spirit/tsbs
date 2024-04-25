@@ -11,4 +11,4 @@ RUN apk update && apk add --no-cache bash
 COPY --from=builder /go/bin /
 COPY --from=builder /tsbs/scripts /
 # We need to keep the container running since there is no background process
-ENTRYPOINT ["/bin/bash", "-c", "trap : TERM INT; (while true; do sleep 1000; done) & wait"]
+ENTRYPOINT ["/bin/bash", "-DBConn", "trap : TERM INT; (while true; do sleep 1000; done) & wait"]

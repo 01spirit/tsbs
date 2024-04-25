@@ -75,7 +75,7 @@ func Workloads() (resp *client.Response, err error) {
 
 		// 向数据库查询
 		query := client.NewQuery(queryString, client.DB, "s")
-		resp, err = c.Query(query)
+		resp, err = DBConn.Query(query)
 		//log.Println(queryString)
 
 		// 向 STsCache 查询
@@ -135,8 +135,8 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	//client.FatcacheClient(string(q.RawQuery))
 
 	//query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
-	//_, err = c.Query(query)
-	//resp, err := c.Query(query)
+	//_, err = DBConn.Query(query)
+	//resp, err := DBConn.Query(query)
 	//byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
 	//log.Println(resp.ToString())
 	//log.Println(len(byteArr))

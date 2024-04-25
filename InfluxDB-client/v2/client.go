@@ -54,14 +54,19 @@ var stscacheConn = stscache.New("192.168.1.101:11211")
 var fatcacheConn = fatcache.New("192.168.1.101:11211")
 
 // 数据库中所有表的tag和field
-var TagKV = GetTagKV(c, DB)
-var Fields = GetFieldKeys(c, DB)
+//var TagKV = GetTagKV(c, DB)
+//var Fields = GetFieldKeys(c, DB)
+
+var TagKV MeasurementTagMap
+var Fields map[string]map[string]string
 
 // var IOTTagKV = GetTagKV(c, IOTDB)
 // var IOTFields = GetFieldKeys(c, IOTDB)
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 
 var TotalGetByteLength = uint64(0)
+var FullyGetNum = uint64(0)
+var PartiallyGetNm = uint64(0)
 
 var MaxThreadNum = 64
 
@@ -72,7 +77,7 @@ const STRINGBYTELENGTH = 32
 const TimeSize = "30m"
 
 // 数据库名称
-const (
+var (
 	//MYDB = "NOAA_water_database"
 	TESTDB   = "test"
 	DB       = "iot"
@@ -81,6 +86,8 @@ const (
 	username = "root"
 	password = "12345678"
 )
+
+var STsCacheURL string
 
 // DB:	test	measurement:	cpu
 /*
@@ -1423,12 +1430,15 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 	5. 客户端把剩余数据存入 cache
 */
 var mu sync.Mutex
-var stsConnArr = InitStsConns()
+
+// var STsConnArr = InitStsConns()
+var STsConnArr []*stscache.Client
 
 func InitStsConns() []*stscache.Client {
 	conns := make([]*stscache.Client, 0)
 	for i := 0; i < MaxThreadNum; i++ {
-		conns = append(conns, stscache.New("192.168.1.102:11211"))
+		//conns = append(conns, stscache.New("192.168.1.102:11211"))
+		conns = append(conns, stscache.New(STsCacheURL))
 	}
 	return conns
 }
@@ -1458,7 +1468,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 	mu.Unlock()
 	/* 向 cache 查询数据 */
 	//values, _, err := stscacheConn.Get(semanticSegment, startTime, endTime)
-	values, _, err := stsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
+	values, _, err := STsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
 	if err != nil { // 缓存未命中
 		log.Printf("Key not found in cache: %v\n", err)
 
@@ -1479,7 +1489,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 			//go func() {
 			/* 存入 cache */
 			//err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			err = stsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
+			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
 				log.Fatalf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
@@ -1553,6 +1563,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 		/* 把剩余数据存入 cache */
 		if !ResponseIsEmpty(remainResponse) {
 			log.Printf("partially GET.")
+			PartiallyGetNm++
 
 			// 异步写入剩余数据
 			//go func() {
@@ -1567,7 +1578,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 			//fmt.Println(remainResponse.ToString())
 
 			//err = stscacheConn.Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
-			err = stsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
+			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
 				log.Fatalf("Error setting value: %v\nQUERY STRING:\t%s\n", err, remainQuery)
@@ -1584,6 +1595,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 			return convertedResponse
 		} else {
 			log.Printf("GET.")
+			FullyGetNum++
 			//log.Printf("bytes get:%d\n", len(values))
 
 			return convertedResponse

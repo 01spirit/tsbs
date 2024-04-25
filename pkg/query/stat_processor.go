@@ -97,6 +97,8 @@ func (sp *defaultStatProcessor) process(workers uint) {
 	prevTime := sp.startTime
 	prevRequestCount := uint64(0)
 	prevByteLength := uint64(0)
+	prevFullyGetNum := uint64(0)
+	prevPartiallyGetNum := uint64(0)
 
 	for stat := range sp.c {
 		atomic.AddUint64(&sp.opsCount, 1)
@@ -143,9 +145,15 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			now := time.Now()
 			sinceStart := now.Sub(sp.startTime)
 			took := now.Sub(prevTime)
+
 			// todo byte length
 			intervalBandWidth := float64(client.TotalGetByteLength-prevByteLength) / float64(took.Seconds())
 			overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
+			// todo 完全命中和部分命中
+			intervalFullyGetNum := float64(client.FullyGetNum-prevFullyGetNum) / float64(took.Seconds())
+			overallFullyGetNum := float64(client.FullyGetNum) / float64(sinceStart.Seconds())
+			intervalPartiallyGetNum := float64(client.PartiallyGetNm-prevPartiallyGetNum) / float64(took.Seconds())
+			overallPartiallyGetNum := float64(client.PartiallyGetNm) / float64(sinceStart.Seconds())
 
 			intervalQueryRate := float64(sp.opsCount-prevRequestCount) / float64(took.Seconds())
 			overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
@@ -156,13 +164,23 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			//	overallQueryRate,
 			//)
 
-			_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\nInterval query rate: %0.2f queries/sec\tInterval bandwidth: %0.2f bytes/sec \t Overall query rate: %0.2f queries/sec\t Overall bandwidth: %0.2f bytes/sec\n",
+			_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\nInterval query rate: %0.2f queries/sec\tOverall query rate: %0.2f queries/sec\n",
 				i-sp.args.burnIn,
 				workers,
 				intervalQueryRate,
-				intervalBandWidth,
 				overallQueryRate,
+			)
+			_, err = fmt.Fprintf(os.Stderr, "\tInterval bandwidth: %0.2f bytes/sec \t Overall bandwidth: %0.2f bytes/sec\n",
+				intervalBandWidth,
 				overallBandWidth,
+			)
+			_, err = fmt.Fprintf(os.Stderr, "\tInterval fully get number: %0.2f \t Overall fully get number: %0.2f\n",
+				intervalFullyGetNum,
+				overallFullyGetNum,
+			)
+			_, err = fmt.Fprintf(os.Stderr, "\tInterval partially get number: %0.2f \t Overall partially get number: %0.2f\n",
+				intervalPartiallyGetNum,
+				overallPartiallyGetNum,
 			)
 
 			if err != nil {
@@ -178,16 +196,22 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			}
 			prevRequestCount = sp.opsCount
 			prevByteLength = client.TotalGetByteLength
+			prevFullyGetNum = client.FullyGetNum
+			prevPartiallyGetNum = client.PartiallyGetNm
+
 			prevTime = now
 		}
 	}
 	sinceStart := time.Now().Sub(sp.startTime)
 	overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
 	overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
+	overallFullyGetNum := float64(client.FullyGetNum) / float64(sinceStart.Seconds())
+	overallPartiallyGetNum := float64(client.PartiallyGetNm) / float64(sinceStart.Seconds())
+
 	// the final stats output goes to stdout:
 	// todo bandwidth
 	//_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):\n", i-sp.args.burnIn, workers, overallQueryRate)
-	_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):(Overall bandwidth %0.2f queries/sec)\n", i-sp.args.burnIn, workers, overallQueryRate, overallBandWidth)
+	_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):(Overall bandwidth %0.2f queries/sec):(Overall fully get number %0.2f ):(Overall partially get number %0.2f )\n", i-sp.args.burnIn, workers, overallQueryRate, overallBandWidth, overallFullyGetNum, overallPartiallyGetNum)
 
 	if err != nil {
 		log.Fatal(err)

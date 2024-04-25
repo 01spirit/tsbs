@@ -7,12 +7,12 @@ package main
 
 import (
 	"fmt"
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"log"
 	"strings"
 
 	"github.com/blagojts/viper"
 	"github.com/spf13/pflag"
-	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"github.com/timescale/tsbs/internal/utils"
 	"github.com/timescale/tsbs/pkg/query"
 )
@@ -28,10 +28,10 @@ var (
 	runner *query.BenchmarkRunner
 )
 
-var c, err = client.NewHTTPClient(client.HTTPConfig{
-	Addr: "http://192.168.1.103:8086",
-	//Addr: "http://localhost:8086",
-})
+//	var DBConn, err = client.NewHTTPClient(client.HTTPConfig{
+//		Addr: "http://192.168.1.103:8086",
+//	})
+var DBConn client.Client
 
 // Parse args:
 func init() {
@@ -61,6 +61,11 @@ func init() {
 	if len(daemonUrls) == 0 {
 		log.Fatal("missing 'urls' flag")
 	}
+
+	// todo
+	DBConn, _ = client.NewHTTPClient(client.HTTPConfig{Addr: daemonUrls[0]})
+	client.TagKV = client.GetTagKV(DBConn, client.DB)
+	client.Fields = client.GetFieldKeys(DBConn, client.DB)
 
 	runner = query.NewBenchmarkRunner(config)
 }

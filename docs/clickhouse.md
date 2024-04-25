@@ -84,7 +84,7 @@ Password to use to connect to the ClickHouse server. Default password is empty
 
 Add ClickHouse repo
 ```bash
-sudo bash -c "echo 'deb http://repo.yandex.ru/clickhouse/deb/stable/ main/' > /etc/apt/sources.list.d/clickhouse.list"
+sudo bash -DBConn "echo 'deb http://repo.yandex.ru/clickhouse/deb/stable/ main/' > /etc/apt/sources.list.d/clickhouse.list"
 ```
 Add key and update repolist
 ```bash

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -38,6 +39,8 @@ type BenchmarkRunnerConfig struct {
 	PrintInterval    uint64 `mapstructure:"print-interval"`  // 打印间隔，表示打印时间统计的时间间隔。
 	PrewarmQueries   bool   `mapstructure:"prewarm-queries"` // 预热查询，表示是否在执行基准测试前执行预热查询。
 	ResultsFile      string `mapstructure:"results-file"`    // 结果文件，用于指定基准测试结果的文件名称或路径。
+	//
+	CacheURL string `mapstructure:"cache-url"`
 }
 
 // High Dynamic Range (HDR) Histogram of Response Latencies 是一种用于记录和统计不同响应延迟时间的数据结构。
@@ -58,6 +61,8 @@ func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	fs.Int("debug", 0, "Whether to print debug messages.")
 	fs.String("file", "", "File name to read queries from")
 	fs.String("results-file", "", "Write the test results summary json to this file")
+	//
+	fs.String("cache-url", "http://localhost:11211", "STsCache url")
 }
 
 // BenchmarkRunner contains the common components for running a query benchmarking
@@ -82,6 +87,13 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 		burnIn:           runner.BurnIn,
 		hdrLatenciesFile: runner.HDRLatenciesFile,
 	}
+	// todo cache启动参数
+	client.DB = config.DBName
+	client.STsCacheURL = config.CacheURL
+	client.STsConnArr = client.InitStsConns()
+	log.Println(client.DB)
+	log.Println(client.STsCacheURL)
+	log.Println(len(client.STsConnArr))
 
 	runner.sp = newStatProcessor(spArgs)
 	return runner
