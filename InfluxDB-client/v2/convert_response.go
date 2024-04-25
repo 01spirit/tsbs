@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/timescale/tsbs/InfluxDB-client/models"
+	"sync"
 
 	//"github.com/influxdata/influxdb1-client/models"
 	"log"
@@ -66,6 +67,8 @@ func (resp *Response) ToString() string {
 	return result
 }
 
+var mu2 sync.Mutex
+
 // ResponseToByteArray 把数据库的查询结果转换为字节流
 func ResponseToByteArray(resp *Response, queryString string) []byte {
 	result := make([]byte, 0)
@@ -77,7 +80,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 
 	/* 获取每一列的数据类型 */
 	datatypes := GetDataTypeArrayFromResponse(resp)
-
+	mu2.Lock()
 	/* 获取每张表单独的语义段 */
 	//seperateSemanticSegment := SeperateSemanticSegment(queryString, resp)	// 已弃用
 	seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
@@ -99,7 +102,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 		newSepSeg = append(newSepSeg, nullSegment)
 		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
 	}
-
+	mu2.Unlock()
 	/* 每行数据的字节数 */
 	bytesPerLine := BytesPerLine(datatypes)
 

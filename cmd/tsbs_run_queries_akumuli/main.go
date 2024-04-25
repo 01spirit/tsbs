@@ -68,7 +68,7 @@ func (p *processor) Init(workerNumber int) {
 	p.w = NewHTTPClient(url)
 }
 
-func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, _ bool, workerNum int) ([]*query.Stat, error) {
 	hq := q.(*query.HTTP)
 	lag, err := p.w.Do(hq, p.opts)
 	if err != nil {

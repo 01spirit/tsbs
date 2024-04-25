@@ -118,7 +118,7 @@ func (p *processor) Init(_ int) {
 	}
 }
 
-func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, _ bool, workerNum int) ([]*query.Stat, error) {
 	tq := q.(*query.Timestream)
 
 	start := time.Now()

@@ -21,7 +21,7 @@ func (p *testProcessor) Init(workerNum int) {
 	p.count = 0
 }
 
-func (p *testProcessor) ProcessQuery(_ Query, _ bool) ([]*Stat, error) {
+func (p *testProcessor) ProcessQuery(_ Query, _ bool, workerNum int) ([]*Stat, error) {
 	p.count++
 	return nil, nil
 }
@@ -335,7 +335,7 @@ type mockProcessor struct {
 }
 
 func (mp *mockProcessor) Init(workerNum int) { mp.initCalled = true }
-func (mp *mockProcessor) ProcessQuery(q Query, isWarm bool) ([]*Stat, error) {
+func (mp *mockProcessor) ProcessQuery(q Query, isWarm bool, workerNum int) ([]*Stat, error) {
 	return mp.processRes, mp.processErr
 }
 

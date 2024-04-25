@@ -84,7 +84,7 @@ func (p *processor) Init(workerNumber int) {
 	p.collection = db.C("point_data")
 }
 
-func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, _ bool, workerNum int) ([]*query.Stat, error) {
 	mq := q.(*query.Mongo)
 	start := time.Now().UnixNano()
 	pipe := p.collection.Pipe(mq.BsonDoc).AllowDiskUse()

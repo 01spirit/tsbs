@@ -102,7 +102,7 @@ func Workloads() (resp *client.Response, err error) {
 
 // Do performs the action specified by the given Query. It uses fasthttp, and
 // tries to minimize heap allocations.
-func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, err error) {
+func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int) (lag float64, err error) {
 	// populate uri from the reusable byte slice:
 	w.uri = w.uri[:0]
 	w.uri = append(w.uri, w.Host...)
@@ -130,7 +130,9 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	//_, err = Workloads()
 
 	log.Println(string(q.RawQuery))
-	client.IntegratedClient(string(q.RawQuery))
+	client.IntegratedClient(string(q.RawQuery), workerNum)
+
+	//client.FatcacheClient(string(q.RawQuery))
 
 	//query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
 	//_, err = c.Query(query)

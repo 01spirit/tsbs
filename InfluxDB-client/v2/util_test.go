@@ -59,7 +59,7 @@ func TestGetQueryTimeRange(t *testing.T) {
 	}{
 		{
 			name:        "1",
-			queryString: "SELECT index FROM h2o_quality WHERE time >= '2019-08-18T00:00:00Z' AND time < '2019-08-18T00:30:00Z'",
+			queryString: "SELECT index FROM h2o_quality WHERE time >= '2019-08-18T00:00:00Z' AND time <= '2019-08-18T00:30:00Z'",
 			expected:    []int64{1566086400, 1566088200},
 		},
 		{

@@ -1320,7 +1320,7 @@ func TestIntegratedClient(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet)
+	IntegratedClient(queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1368,7 +1368,7 @@ func TestIntegratedClientIOT(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet)
+	IntegratedClient(queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1417,7 +1417,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet)
+	IntegratedClient(queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1466,7 +1466,7 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet)
+	IntegratedClient(queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1556,13 +1556,13 @@ func TestIntegratedClientIOT2(t *testing.T) {
 
 func TestMultiThreadSTsCache(t *testing.T) {
 	//queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
-	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T00:01:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-02T00:01:00Z' GROUP BY "name"`
 
 	var wg sync.WaitGroup
 	for i := 0; i < 64; i++ {
 		wg.Add(1)
 		go func() {
-			IntegratedClient(queryToBeGet)
+			IntegratedClient(queryToBeGet, i)
 			//query := NewQuery(queryToBeGet, "iot", "s")
 			//resp, _ := c.Query(query)
 			//ss := GetSemanticSegment(queryToBeGet)
@@ -1627,6 +1627,34 @@ func TestSetSTsCache(t *testing.T) {
 		}
 	}
 
+}
+
+func TestInitStsConns(t *testing.T) {
+	queryString := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T01:00:00Z' AND TIME <= '2021-01-01T02:00:00Z' GROUP BY "name"`
+
+	conns := InitStsConns()
+	log.Printf("number of conns:%d\n", len(conns))
+	for i, conn := range conns {
+		log.Printf("index:%d\ttimeout:%d\n", i, conn.Timeout)
+		query := NewQuery(queryString, "iot", "s")
+		resp, _ := c.Query(query)
+		ss := GetSemanticSegment(queryString)
+		st, et := GetQueryTimeRange(queryString)
+		numOfTable := len(resp.Results[0].Series)
+		val := ResponseToByteArray(resp, queryString)
+		err := conn.Set(&stscache.Item{
+			Key:         ss,
+			Value:       val,
+			Time_start:  st,
+			Time_end:    et,
+			NumOfTables: int64(numOfTable),
+		})
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println("success.")
+		}
+	}
 }
 
 func BenchmarkIntegratedClient(b *testing.B) {

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/HdrHistogram/hdrhistogram-go"
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -95,6 +96,7 @@ func (sp *defaultStatProcessor) process(workers uint) {
 	sp.startTime = time.Now()
 	prevTime := sp.startTime
 	prevRequestCount := uint64(0)
+	prevByteLength := uint64(0)
 
 	for stat := range sp.c {
 		atomic.AddUint64(&sp.opsCount, 1)
@@ -141,14 +143,28 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			now := time.Now()
 			sinceStart := now.Sub(sp.startTime)
 			took := now.Sub(prevTime)
+			// todo byte length
+			intervalBandWidth := float64(client.TotalGetByteLength-prevByteLength) / float64(took.Seconds())
+			overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
+
 			intervalQueryRate := float64(sp.opsCount-prevRequestCount) / float64(took.Seconds())
 			overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
-			_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\nInterval query rate: %0.2f queries/sec\tOverall query rate: %0.2f queries/sec\n",
+			//_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\nInterval query rate: %0.2f queries/sec\tOverall query rate: %0.2f queries/sec\n",
+			//	i-sp.args.burnIn,
+			//	workers,
+			//	intervalQueryRate,
+			//	overallQueryRate,
+			//)
+
+			_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\nInterval query rate: %0.2f queries/sec\tInterval bandwidth: %0.2f bytes/sec \t Overall query rate: %0.2f queries/sec\t Overall bandwidth: %0.2f bytes/sec\n",
 				i-sp.args.burnIn,
 				workers,
 				intervalQueryRate,
+				intervalBandWidth,
 				overallQueryRate,
+				overallBandWidth,
 			)
+
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -161,13 +177,18 @@ func (sp *defaultStatProcessor) process(workers uint) {
 				log.Fatal(err)
 			}
 			prevRequestCount = sp.opsCount
+			prevByteLength = client.TotalGetByteLength
 			prevTime = now
 		}
 	}
 	sinceStart := time.Now().Sub(sp.startTime)
 	overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
+	overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
 	// the final stats output goes to stdout:
-	_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):\n", i-sp.args.burnIn, workers, overallQueryRate)
+	// todo bandwidth
+	//_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):\n", i-sp.args.burnIn, workers, overallQueryRate)
+	_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):(Overall bandwidth %0.2f queries/sec)\n", i-sp.args.burnIn, workers, overallQueryRate, overallBandWidth)
+
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -79,7 +79,7 @@ func (p *processor) Init(workerNum int) {
 }
 
 // query.Processor interface implementation
-func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, isWarm bool, workerNum int) ([]*query.Stat, error) {
 	hq := q.(*query.HTTP)
 	lag, err := p.do(hq)
 	if err != nil {

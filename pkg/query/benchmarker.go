@@ -116,7 +116,7 @@ type Processor interface {
 	Init(workerNum int)
 
 	// ProcessQuery handles a given query and reports its stats
-	ProcessQuery(q Query, isWarm bool) ([]*Stat, error)
+	ProcessQuery(q Query, isWarm bool, workerNum int) ([]*Stat, error)
 }
 
 // GetBufferedReader returns the buffered Reader that should be used by the loader
@@ -225,7 +225,7 @@ func (b *BenchmarkRunner) processorHandler(wg *sync.WaitGroup, rateLimiter *rate
 		r := rateLimiter.Reserve()
 		time.Sleep(r.Delay())
 
-		stats, err := processor.ProcessQuery(query, false)
+		stats, err := processor.ProcessQuery(query, false, workerNum)
 		if err != nil {
 			panic(err)
 		}
@@ -237,7 +237,7 @@ func (b *BenchmarkRunner) processorHandler(wg *sync.WaitGroup, rateLimiter *rate
 		spArgs := b.sp.getArgs()
 		if spArgs.prewarmQueries {
 			// Warm run
-			stats, err = processor.ProcessQuery(query, true)
+			stats, err = processor.ProcessQuery(query, true, workerNum)
 			if err != nil {
 				panic(err)
 			}

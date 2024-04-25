@@ -87,7 +87,7 @@ func (p *processor) Init(workerNumber int) {
 	p.w = NewHTTPClient(url)
 }
 
-func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, _ bool, workerNum int) ([]*query.Stat, error) {
 	hq := q.(*query.HTTP)
 
 	//println(string(hq.Path))
@@ -96,7 +96,7 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	//println(string(hq.RawQuery))
 
 	// todo
-	lag, err := p.w.Do(hq, p.opts)
+	lag, err := p.w.Do(hq, p.opts, workerNum)
 
 	if err != nil {
 		return nil, err

@@ -175,7 +175,7 @@ func (p *processor) Init(numWorker int) {
 	}
 }
 
-func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, isWarm bool, workerNum int) ([]*query.Stat, error) {
 
 	// No need to run again for EXPLAIN
 	if isWarm && p.opts.showExplain {

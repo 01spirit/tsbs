@@ -123,7 +123,7 @@ func (p *processor) Init(workerNumber int) {
 	p.qe = NewHLQueryExecutor(session, csi, runner.DebugLevel())
 }
 
-func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, error) {
+func (p *processor) ProcessQuery(q query.Query, isWarm bool, workerNum int) ([]*query.Stat, error) {
 	cq := q.(*query.Cassandra)
 	hlq := &HLQuery{*cq}
 	hlq.ForceUTC()
