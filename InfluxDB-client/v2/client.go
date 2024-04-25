@@ -64,9 +64,10 @@ var Fields map[string]map[string]string
 // var IOTFields = GetFieldKeys(c, IOTDB)
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 
+var UseCache = true
 var TotalGetByteLength = uint64(0)
 var FullyGetNum = uint64(0)
-var PartiallyGetNm = uint64(0)
+var PartiallyGetNum = uint64(0)
 
 var MaxThreadNum = 64
 
@@ -1443,7 +1444,7 @@ func InitStsConns() []*stscache.Client {
 	return conns
 }
 
-func IntegratedClient(queryString string, workerNum int) *Response {
+func IntegratedClient(conn Client, queryString string, workerNum int) *Response {
 	log.Printf("thread number:%d\n", workerNum)
 	/* 原始查询语句的时间范围 */
 	startTime, endTime := GetQueryTimeRange(queryString) // 当查询的时间只有一半时，另一个值为 -1; 当查询时间为 "=" 时，两值相等
@@ -1474,7 +1475,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
-		resp, _ := c.Query(q)
+		resp, _ := conn.Query(q)
 
 		if !ResponseIsEmpty(resp) {
 
@@ -1518,7 +1519,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 		recv_start_time, recv_end_time := GetResponseTimeRange(convertedResponse)
 		if recv_start_time == -1 || recv_end_time == -1 {
 			q := NewQuery(queryString, DB, "s")
-			resp, _ := c.Query(q)
+			resp, _ := conn.Query(q)
 
 			return resp
 		}
@@ -1541,7 +1542,7 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 			//log.Printf("remain_start_time_string:%s\n", remain_start_time_string)
 			log.Printf("remain query:%s\n", remainQuery)
 			q := NewQuery(remainQuery, DB, "s")
-			remainResponse, _ = c.Query(q)
+			remainResponse, _ = conn.Query(q)
 		} else if recv_end_time < endTime && endTime-recv_end_time > RemainTimeInterval { // 起始时间命中，结束时间未命中
 			remain_start_time_string := TimeInt64ToString(recv_end_time)
 			remain_end_time_string := TimeInt64ToString(endTime)
@@ -1557,13 +1558,13 @@ func IntegratedClient(queryString string, workerNum int) *Response {
 			//log.Printf("==================================================================\n")
 			/* 向数据库查询剩余数据 */
 			q := NewQuery(remainQuery, DB, "s")
-			remainResponse, _ = c.Query(q)
+			remainResponse, _ = conn.Query(q)
 		}
 
 		/* 把剩余数据存入 cache */
 		if !ResponseIsEmpty(remainResponse) {
 			log.Printf("partially GET.")
-			PartiallyGetNm++
+			PartiallyGetNum++
 
 			// 异步写入剩余数据
 			//go func() {

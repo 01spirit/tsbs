@@ -115,11 +115,6 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	}
 
 	// todo 集成客户端
-	// populate a request with data from the Query:
-	//req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	//ss := client.GetSemanticSegment(string(q.RawQuery))
 	//println(ss)
@@ -130,23 +125,38 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	//_, err = Workloads()
 
 	log.Println(string(q.RawQuery))
-	client.IntegratedClient(string(q.RawQuery), workerNum)
+	if client.UseCache {
+
+		client.IntegratedClient(DBConn, string(q.RawQuery), workerNum)
+
+	} else {
+
+		query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
+		_, err = DBConn.Query(query)
+		resp, _ := DBConn.Query(query)
+		byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
+		client.TotalGetByteLength += uint64(len(byteArr))
+		//log.Println(resp.ToString())
+		//log.Println(len(byteArr))
+
+		//populate a request with data from the Query:
+		//req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
+		//if err != nil {
+		//	panic(err)
+		//}
+		//resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
+		//log.Println(resp.ContentLength)
+		//client.TotalGetByteLength += uint64(resp.ContentLength)
+		//defer resp.Body.Close() // 延迟处理，关闭响应体
+	}
 
 	//client.FatcacheClient(string(q.RawQuery))
 
-	//query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
-	//_, err = DBConn.Query(query)
-	//resp, err := DBConn.Query(query)
-	//byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
-	//log.Println(resp.ToString())
-	//log.Println(len(byteArr))
-
-	//resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
 	//
 	//if err != nil {
 	//	panic(err)
 	//}
-	//defer resp.Body.Close() // 延迟处理，关闭响应体
+
 	//if resp.StatusCode != http.StatusOK {
 	//	panic("http request did not return status 200 OK")
 	//}

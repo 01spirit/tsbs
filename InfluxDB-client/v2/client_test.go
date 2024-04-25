@@ -1320,7 +1320,7 @@ func TestIntegratedClient(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet, 0)
+	IntegratedClient(c, queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1368,7 +1368,7 @@ func TestIntegratedClientIOT(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet, 0)
+	IntegratedClient(c, queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1417,7 +1417,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet, 0)
+	IntegratedClient(c, queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1466,7 +1466,7 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(queryToBeGet, 0)
+	IntegratedClient(c, queryToBeGet, 0)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1562,7 +1562,7 @@ func TestMultiThreadSTsCache(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		wg.Add(1)
 		go func() {
-			IntegratedClient(queryToBeGet, i)
+			IntegratedClient(c, queryToBeGet, i)
 			//query := NewQuery(queryToBeGet, "iot", "s")
 			//resp, _ := c.Query(query)
 			//ss := GetSemanticSegment(queryToBeGet)

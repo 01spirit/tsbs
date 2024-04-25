@@ -41,6 +41,7 @@ type BenchmarkRunnerConfig struct {
 	ResultsFile      string `mapstructure:"results-file"`    // 结果文件，用于指定基准测试结果的文件名称或路径。
 	//
 	CacheURL string `mapstructure:"cache-url"`
+	UseCache string `mapstructure:"use-cache"`
 }
 
 // High Dynamic Range (HDR) Histogram of Response Latencies 是一种用于记录和统计不同响应延迟时间的数据结构。
@@ -63,6 +64,7 @@ func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	fs.String("results-file", "", "Write the test results summary json to this file")
 	//
 	fs.String("cache-url", "http://localhost:11211", "STsCache url")
+	fs.String("use-cache", "true", "use STsCache ,otherwise use database")
 }
 
 // BenchmarkRunner contains the common components for running a query benchmarking
@@ -91,9 +93,13 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 	client.DB = config.DBName
 	client.STsCacheURL = config.CacheURL
 	client.STsConnArr = client.InitStsConns()
-	log.Println(client.DB)
-	log.Println(client.STsCacheURL)
-	log.Println(len(client.STsConnArr))
+	if config.UseCache == "false" {
+		client.UseCache = false
+	}
+
+	//log.Println(client.DB)
+	//log.Println(client.STsCacheURL)
+	//log.Println(len(client.STsConnArr))
 
 	runner.sp = newStatProcessor(spArgs)
 	return runner
