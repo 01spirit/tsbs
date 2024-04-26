@@ -66,7 +66,8 @@ var (
 const (
 	// DefaultTimeout is the default socket read/write timeout.		默认超时时间
 	//DefaultTimeout = 500 * time.Millisecond
-	DefaultTimeout = 100000 * time.Millisecond
+	DefaultTimeout = 100 * 100 * 100 * 1000 * time.Millisecond
+	//DefaultTimeout = 0 * time.Millisecond
 
 	// DefaultMaxIdleConns is the default maximum number of idle connections	默认最多有两个闲置的连接
 	// kept for any single address.
@@ -579,7 +580,7 @@ func parseGetResponse(r *bufio.Reader, itemValues *[]byte, cb func(*Item)) (err 
 		line, err := r.ReadBytes('\n') //从查寻结果中读取一行, 换行符对应的字节码是 10， 如果数据中有 int64 类型的 10，读取时会把数字错误当作换行符
 		if err != nil {
 			return err
-		}
+		} // EOF
 		//fmt.Printf("%s", line)
 		if bytes.Equal(line, resultEnd) { // get 命令查询结束后会在数据末尾添加 "END", 如果读到 END，说明数据读取完毕
 			return nil

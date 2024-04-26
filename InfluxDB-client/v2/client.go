@@ -1471,7 +1471,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 	//values, _, err := stscacheConn.Get(semanticSegment, startTime, endTime)
 	values, _, err := STsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
 	if err != nil { // 缓存未命中
-		log.Printf("Key not found in cache: %v\n", err)
+		log.Printf("Get fail: %v\n", err)
 
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
@@ -1493,7 +1493,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
-				log.Fatalf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
+				log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, queryString)
 				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
 			} else {
 				log.Printf("STORED.")
@@ -1566,8 +1566,6 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			log.Printf("partially GET.")
 			PartiallyGetNum++
 
-			// 异步写入剩余数据
-			//go func() {
 			remainSemanticSegment := semanticSegment
 			// todo 从剩余查询中获取时间范围
 			//remain_start_time, remain_end_time := GetResponseTimeRange(remainResponse)
@@ -1577,12 +1575,13 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 
 			//fmt.Println("To be set again:")
 			//fmt.Println(remainResponse.ToString())
-
+			// 异步写入剩余数据
+			//go func() {
 			//err = stscacheConn.Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
-				log.Fatalf("Error setting value: %v\nQUERY STRING:\t%s\n", err, remainQuery)
+				log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, remainQuery)
 				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
 			} else {
 				log.Printf("STORED.")
