@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -133,73 +131,72 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 
 	} else {
 
-		//query := client.NewQuery(string(q.RawQuery), client.IOTDB, "s")
-		//_, err = DBConn.Query(query)
-		//resp, _ := DBConn.Query(query)
-		//byteArr := client.ResponseToByteArray(resp, string(q.RawQuery))
-		//client.TotalGetByteLength += uint64(len(byteArr))
+		qry := client.NewQuery(string(q.RawQuery), client.DB, "s")
+		_, err = DBConn.Query(qry)
+		length, _, _ := DBConn.QueryFromDatabase(qry)
+		client.TotalGetByteLength += length
 		//log.Println(len(byteArr))
 
 		//populate a request with data from the Query:
-		req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
-		if err != nil {
-			panic(err)
-		}
-		resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
-		log.Println(resp.ContentLength)
-		client.TotalGetByteLength += uint64(resp.ContentLength)
-		defer resp.Body.Close() // 延迟处理，关闭响应体
-
-		if err != nil {
-			panic(err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			panic("http request did not return status 200 OK")
-		}
-
-		var body []byte
-		body, err = ioutil.ReadAll(resp.Body) // 获取查询结果
-
-		if err != nil {
-			panic(err)
-		}
-		if opts != nil {
-			// Print debug messages, if applicable:
-			switch opts.Debug {
-			case 1:
-				fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms\n", q.HumanLabel, lag)
-			case 2:
-				fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
-			case 3:
-				fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
-				fmt.Fprintf(os.Stderr, "debug:   request: %s\n", string(q.String()))
-			case 4:
-				fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
-				fmt.Fprintf(os.Stderr, "debug:   request: %s\n", string(q.String()))
-				fmt.Fprintf(os.Stderr, "debug:   response: %s\n", string(body))
-			default:
-			}
-
-			// Pretty print JSON responses, if applicable:
-			if opts.PrettyPrintResponses {
-				// Assumes the response is JSON! This holds for Influx
-				// and Elastic.
-
-				prefix := fmt.Sprintf("ID %d: ", q.GetID())
-				var v interface{}
-				var line []byte
-				full := make(map[string]interface{})
-				full["influxql"] = string(q.RawQuery)
-				json.Unmarshal(body, &v)
-				full["response"] = v
-				line, err = json.MarshalIndent(full, prefix, "  ")
-				if err != nil {
-					return
-				}
-				fmt.Println(string(line) + "\n")
-			}
-		}
+		//req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
+		//if err != nil {
+		//	panic(err)
+		//}
+		//resp, err := w.client.Do(req) // 向服务器发送 HTTP 请求，获取响应
+		//log.Println(resp.ContentLength)
+		//client.TotalGetByteLength += uint64(resp.ContentLength)
+		//defer resp.Body.Close() // 延迟处理，关闭响应体
+		//
+		//if err != nil {
+		//	panic(err)
+		//}
+		//
+		//if resp.StatusCode != http.StatusOK {
+		//	panic("http request did not return status 200 OK")
+		//}
+		//
+		//var body []byte
+		//body, err = ioutil.ReadAll(resp.Body) // 获取查询结果
+		//
+		//if err != nil {
+		//	panic(err)
+		//}
+		//if opts != nil {
+		//	// Print debug messages, if applicable:
+		//	switch opts.Debug {
+		//	case 1:
+		//		fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms\n", q.HumanLabel, lag)
+		//	case 2:
+		//		fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
+		//	case 3:
+		//		fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
+		//		fmt.Fprintf(os.Stderr, "debug:   request: %s\n", string(q.String()))
+		//	case 4:
+		//		fmt.Fprintf(os.Stderr, "debug: %s in %7.2fms -- %s\n", q.HumanLabel, lag, q.HumanDescription)
+		//		fmt.Fprintf(os.Stderr, "debug:   request: %s\n", string(q.String()))
+		//		fmt.Fprintf(os.Stderr, "debug:   response: %s\n", string(body))
+		//	default:
+		//	}
+		//
+		//	// Pretty print JSON responses, if applicable:
+		//	if opts.PrettyPrintResponses {
+		//		// Assumes the response is JSON! This holds for Influx
+		//		// and Elastic.
+		//
+		//		prefix := fmt.Sprintf("ID %d: ", q.GetID())
+		//		var v interface{}
+		//		var line []byte
+		//		full := make(map[string]interface{})
+		//		full["influxql"] = string(q.RawQuery)
+		//		json.Unmarshal(body, &v)
+		//		full["response"] = v
+		//		line, err = json.MarshalIndent(full, prefix, "  ")
+		//		if err != nil {
+		//			return
+		//		}
+		//		fmt.Println(string(line) + "\n")
+		//	}
+		//}
 	}
 
 	//client.FatcacheClient(string(q.RawQuery))

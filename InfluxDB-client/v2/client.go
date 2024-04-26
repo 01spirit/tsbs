@@ -185,6 +185,8 @@ type Client interface {
 	// the UDP client.
 	Query(q Query) (*Response, error)
 
+	QueryFromDatabase(query Query) (uint64, *Response, error)
+
 	// QueryAsChunk makes an InfluxDB Query on the database. This will fail if using
 	// the UDP client.
 	QueryAsChunk(q Query) (*ChunkedResponse, error)
@@ -636,6 +638,78 @@ type Result struct {
 	Series      []models.Row
 	Messages    []*Message
 	Err         string `json:"error,omitempty"`
+}
+
+func (c *client) QueryFromDatabase(q Query) (uint64, *Response, error) {
+	req, err := c.createDefaultRequest(q)
+	if err != nil {
+		return 0, nil, err
+	}
+	params := req.URL.Query()
+	if q.Chunked { //查询结果是否分块
+		params.Set("chunked", "true")
+		if q.ChunkSize > 0 {
+			params.Set("chunk_size", strconv.Itoa(q.ChunkSize))
+		}
+		req.URL.RawQuery = params.Encode()
+	}
+	resp, err := c.httpClient.Do(req) // 发送请求
+	if err != nil {
+		return 0, nil, err
+	}
+	defer func() {
+		io.Copy(ioutil.Discard, resp.Body) // https://github.com/influxdata/influxdb1-client/issues/58
+		resp.Body.Close()
+	}()
+
+	if err := checkResponse(resp); err != nil {
+		return 0, nil, err
+	}
+
+	var response Response
+	if q.Chunked { // 分块
+		cr := NewChunkedResponse(resp.Body)
+		for {
+			r, err := cr.NextResponse()
+			if err != nil {
+				if err == io.EOF { // 结束
+					break
+				}
+				// If we got an error while decoding the response, send that back.
+				return 0, nil, err
+			}
+
+			if r == nil {
+				break
+			}
+
+			response.Results = append(response.Results, r.Results...) // 把所有结果添加到 response.Results 数组中
+			if r.Err != "" {
+				response.Err = r.Err
+				break
+			}
+		}
+	} else { // 不分块，普通查询
+		dec := json.NewDecoder(resp.Body) // 响应是 json 格式，需要进行解码，创建一个 Decoder，参数是 JSON 的 Reader
+		dec.UseNumber()                   // 解码时把数字字符串转换成 Number 的字面值
+		decErr := dec.Decode(&response)   // 解码，结果存入自定义的 Response, Response结构体和 json 的字段对应
+
+		// ignore this error if we got an invalid status code
+		if decErr != nil && decErr.Error() == "EOF" && resp.StatusCode != http.StatusOK {
+			decErr = nil
+		}
+		// If we got a valid decode error, send that back
+		if decErr != nil {
+			return 0, nil, fmt.Errorf("unable to decode json: received status code %d err: %s", resp.StatusCode, decErr)
+		}
+	}
+
+	// If we don't have an error in our json response, and didn't get statusOK
+	// then send back an error
+	if resp.StatusCode != http.StatusOK && response.Error() == nil {
+		return 0, &response, fmt.Errorf("received status code %d from server", resp.StatusCode)
+	}
+	return uint64(resp.ContentLength), &response, nil
 }
 
 // Query sends a command to the server and returns the Response.
