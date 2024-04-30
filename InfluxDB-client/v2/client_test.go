@@ -1392,8 +1392,12 @@ func TestIntegratedClientIOT(t *testing.T) {
 }
 
 func TestIntegratedClientIOT100(t *testing.T) {
-	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T02:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
-	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T22:00:00Z' GROUP BY "name"`
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T01:00:00Z' AND TIME <= '2021-01-01T2:00:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T00:00:00Z' AND TIME <= '2021-01-01T2:00:00Z' GROUP BY "name"`
+	TagKV = GetTagKV(c, "iot")
+	Fields = GetFieldKeys(c, "iot")
+	STsCacheURLArr := []string{"192.168.1.102:11211"}
+	STsConnArr = InitStsConnsArr(STsCacheURLArr)
 
 	qm := NewQuery(queryToBeSet, "iot", "s")
 	respCache, _ := c.Query(qm)
@@ -1657,6 +1661,35 @@ func TestInitStsConns(t *testing.T) {
 	}
 }
 
+func TestInitStsConnsArr(t *testing.T) {
+	queryString := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T01:00:00Z' AND TIME <= '2021-01-01T02:00:00Z' GROUP BY "name"`
+	urlString := "192.168.1.102:11211,192.168.1.102:11212"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	log.Printf("number of conns:%d\n", len(conns))
+	for i, conn := range conns {
+		log.Printf("index:%d\ttimeout:%d\n", i, conn.Timeout)
+		query := NewQuery(queryString, "iot", "s")
+		resp, _ := c.Query(query)
+		ss := GetSemanticSegment(queryString)
+		st, et := GetQueryTimeRange(queryString)
+		numOfTable := len(resp.Results[0].Series)
+		val := ResponseToByteArray(resp, queryString)
+		err := conn.Set(&stscache.Item{
+			Key:         ss,
+			Value:       val,
+			Time_start:  st,
+			Time_end:    et,
+			NumOfTables: int64(numOfTable),
+		})
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println("success.")
+		}
+	}
+}
+
 func BenchmarkIntegratedClient(b *testing.B) {
 	queryToBeGet := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
 	semanticSegment := GetSemanticSegment(queryToBeGet)
@@ -1672,6 +1705,15 @@ func BenchmarkIntegratedClient(b *testing.B) {
 			log.Printf("GET.")
 		}
 	}
+}
+
+func TestClient_QueryFromDatabase(t *testing.T) {
+	queryString := `SELECT current_load,load_capacity FROM "diagnostics" WHERE TIME >= '2021-01-01T01:00:00Z' AND TIME <= '2021-01-01T02:00:00Z' GROUP BY "name"`
+	query := NewQuery(queryString, "iot", "s")
+	length, resp, err := c.QueryFromDatabase(query)
+	fmt.Println(resp.ToString())
+	fmt.Println(length)
+	fmt.Println(err)
 }
 
 //func TestDualDB(t *testing.T) {

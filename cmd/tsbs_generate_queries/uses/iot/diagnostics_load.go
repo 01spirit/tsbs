@@ -22,6 +22,6 @@ func (i *DiagnosticsLoad) Fill(q query.Query, zipNum int64, latestNum int64) que
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.DiagnosticsLoad(q, 1, zipNum, latestNum)
+	fc.DiagnosticsLoad(q, 10, zipNum, latestNum)
 	return q
 }

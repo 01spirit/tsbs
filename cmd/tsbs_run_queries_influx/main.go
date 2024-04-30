@@ -31,7 +31,7 @@ var (
 //	var DBConn, err = client.NewHTTPClient(client.HTTPConfig{
 //		Addr: "http://192.168.1.103:8086",
 //	})
-var DBConn client.Client
+var DBConn []client.Client
 
 // Parse args:
 func init() {
@@ -56,16 +56,19 @@ func init() {
 
 	csvDaemonUrls = viper.GetString("urls")
 	chunkSize = viper.GetUint64("chunk-response-size")
+	client.DB = viper.GetString("db-name")
 
 	daemonUrls = strings.Split(csvDaemonUrls, ",")
 	if len(daemonUrls) == 0 {
 		log.Fatal("missing 'urls' flag")
 	}
-
-	// todo
-	DBConn, _ = client.NewHTTPClient(client.HTTPConfig{Addr: daemonUrls[0]})
-	client.TagKV = client.GetTagKV(DBConn, client.DB)
-	client.Fields = client.GetFieldKeys(DBConn, client.DB)
+	DBConn = make([]client.Client, len(daemonUrls))
+	// todo	多数据库
+	for i := range daemonUrls {
+		DBConn[i], _ = client.NewHTTPClient(client.HTTPConfig{Addr: daemonUrls[i]})
+	}
+	client.TagKV = client.GetTagKV(DBConn[0], client.DB)
+	client.Fields = client.GetFieldKeys(DBConn[0], client.DB)
 
 	runner = query.NewBenchmarkRunner(config)
 }
@@ -101,12 +104,13 @@ func (p *processor) ProcessQuery(q query.Query, _ bool, workerNum int) ([]*query
 	//println(string(hq.RawQuery))
 
 	// todo
-	lag, err := p.w.Do(hq, p.opts, workerNum)
+	lag, byteLength, hitKind, err := p.w.Do(hq, p.opts, workerNum)
 
 	if err != nil {
 		return nil, err
 	}
+	// todo
 	stat := query.GetStat()
-	stat.Init(q.HumanLabelName(), lag)
+	stat.Init(q.HumanLabelName(), lag, byteLength, hitKind)
 	return []*query.Stat{stat}, nil
 }

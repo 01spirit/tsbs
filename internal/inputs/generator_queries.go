@@ -221,7 +221,7 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 
 	// 加入两个分布，用于生成随机时间范围
 	zipfian := distributionGenerator.NewZipfianWithItems(10, distributionGenerator.ZipfianConstant)
-	cntr := counter.NewCounter(1000)
+	cntr := counter.NewCounter(10)
 	latest := distributionGenerator.NewSkewedLatest(cntr)
 
 	zipNums := make([]int64, 0)

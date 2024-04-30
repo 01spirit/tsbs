@@ -20,13 +20,18 @@ type Stat struct {
 	value     float64
 	isWarm    bool
 	isPartial bool
+	//
+	byteLength uint64
+	hitKind    uint8
 }
 
 var statPool = &sync.Pool{
 	New: func() interface{} {
 		return &Stat{
-			label: make([]byte, 0, 1024),
-			value: 0.0,
+			label:      make([]byte, 0, 1024),
+			value:      0.0,
+			byteLength: 0,
+			hitKind:    0,
 		}
 	},
 }
@@ -44,11 +49,13 @@ func GetPartialStat() *Stat {
 }
 
 // Init safely initializes a Stat while minimizing heap allocations.
-func (s *Stat) Init(label []byte, value float64) *Stat {
+func (s *Stat) Init(label []byte, value float64, byteLength uint64, hitKind uint8) *Stat {
 	s.label = s.label[:0] // clear
 	s.label = append(s.label, label...)
 	s.value = value
 	s.isWarm = false
+	s.byteLength = byteLength
+	s.hitKind = hitKind
 	return s
 }
 
@@ -57,6 +64,8 @@ func (s *Stat) reset() *Stat {
 	s.value = 0.0
 	s.isWarm = false
 	s.isPartial = false
+	s.hitKind = 0
+	s.byteLength = 0
 	return s
 }
 

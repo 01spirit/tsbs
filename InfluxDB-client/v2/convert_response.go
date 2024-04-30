@@ -158,6 +158,7 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 
 	seprateSemanticSegments := make([]string, 0) // 存放所有表各自的SCHEMA
 	seriesLength := make([]int64, 0)             // 每张表的数据的总字节数
+	timeRangeArr := make([][]int64, 0)           // 每张表的剩余待查询时间范围
 
 	var curSeg string        // 当前表的语义段
 	var curLen int64         // 当前表的数据的总字节数
@@ -186,7 +187,37 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 			curSeg = string(byteArray[ssStartIdx:ssEndIdx]) // 读取所有表示语义段的字节，直接转换为字符串
 			seprateSemanticSegments = append(seprateSemanticSegments, curSeg)
 
-			index++              // 空格后面的8字节是表示一张表中数据总字节数的int64
+			// todo 时间范围
+			index++ // uint8
+			flag := uint8(byteArray[index])
+			index++
+			if flag == 1 {
+				singleTimeRange := make([]int64, 2)
+				ftimeStartIdx := index // 索引指向第一个时间戳
+				index += 8
+				ftimeEndIdx := index // 索引指向 len 后面一位的回车符 '\r' ，再后面一位是 '\n'
+				tmpBytes := byteArray[ftimeStartIdx:ftimeEndIdx]
+				startTime, err := ByteArrayToInt64(tmpBytes) // 读取 len ，转换为int64
+				if err != nil {
+					log.Fatal(err)
+				}
+				singleTimeRange[0] = startTime
+
+				stimeStartIdx := index // 索引指向第一个时间戳
+				index += 8
+				stimeEndIdx := index // 索引指向 len 后面一位的回车符 '\r' ，再后面一位是 '\n'
+				tmpBytes = byteArray[stimeStartIdx:stimeEndIdx]
+				endTime, err := ByteArrayToInt64(tmpBytes) // 读取 len ，转换为int64
+				if err != nil {
+					log.Fatal(err)
+				}
+				singleTimeRange[1] = endTime
+
+				timeRangeArr = append(timeRangeArr, singleTimeRange)
+			}
+
+			// length
+			//index++              // 空格后面的8字节是表示一张表中数据总字节数的int64
 			lenStartIdx := index // 索引指向 len 的第一个字节
 			index += 8
 			lenEndIdx := index // 索引指向 len 后面一位的回车符 '\r' ，再后面一位是 '\n'

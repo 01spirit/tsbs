@@ -20,7 +20,7 @@ const (
 )
 
 var ZipFianTimeDuration = []time.Duration{
-	1 * hour, 2 * hour, 3 * hour, 6 * hour, 12 * hour, 16 * hour, day, 2 * day, 3 * day, 4 * day,
+	1 * hour / 100, 2 * hour / 100, 3 * hour / 100, 6 * hour / 100, 12 * hour / 100, 16 * hour / 100, day / 100, 2 * day / 100, 3 * day / 100, 4 * day / 100,
 }
 
 //var ZipFianTimeDuration = []time.Duration{
@@ -123,7 +123,7 @@ func (ti *TimeInterval) DistributionRand(zipNum int64, latestNum int64) *TimeInt
 	totalEndTime := ti.end.UnixNano() - 1
 	//fmt.Println(ti.end)
 
-	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() / 2) * (1000 - latestNum - 1)) // Latest分布生成结束时间	默认从整体结束时间开始向前划分一千个时间区间，每个半小时
+	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() / 2) * (10 - latestNum - 1)) // Latest分布生成结束时间	默认从整体结束时间开始向前划分一千个时间区间，每个半小时
 	queryStartTime := queryEndTime - duration
 
 	if queryStartTime < totalStartTime {

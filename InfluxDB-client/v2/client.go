@@ -43,7 +43,7 @@ var c, err = NewHTTPClient(HTTPConfig{
 
 // 连接cache
 // var stscacheConn = stscache.New("10.170.41.179:11212")
-var stscacheConn = stscache.New("192.168.1.101:11211")
+var stscacheConn = stscache.New("192.168.1.102:11211")
 
 //var stscacheConn = stscache.New("10.170.42.5:11211")
 
@@ -65,9 +65,6 @@ var Fields map[string]map[string]string
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 
 var UseCache = true
-var TotalGetByteLength = uint64(0)
-var FullyGetNum = uint64(0)
-var PartiallyGetNum = uint64(0)
 
 var MaxThreadNum = 64
 
@@ -185,7 +182,7 @@ type Client interface {
 	// the UDP client.
 	Query(q Query) (*Response, error)
 
-	QueryFromDatabase(query Query) (uint64, *Response, error)
+	QueryFromDatabase(query Query) (int64, *Response, error)
 
 	// QueryAsChunk makes an InfluxDB Query on the database. This will fail if using
 	// the UDP client.
@@ -640,7 +637,8 @@ type Result struct {
 	Err         string `json:"error,omitempty"`
 }
 
-func (c *client) QueryFromDatabase(q Query) (uint64, *Response, error) {
+func (c *client) QueryFromDatabase(q Query) (int64, *Response, error) {
+	var length int64
 	req, err := c.createDefaultRequest(q)
 	if err != nil {
 		return 0, nil, err
@@ -654,6 +652,7 @@ func (c *client) QueryFromDatabase(q Query) (uint64, *Response, error) {
 		req.URL.RawQuery = params.Encode()
 	}
 	resp, err := c.httpClient.Do(req) // 发送请求
+	length = resp.ContentLength
 	if err != nil {
 		return 0, nil, err
 	}
@@ -709,7 +708,7 @@ func (c *client) QueryFromDatabase(q Query) (uint64, *Response, error) {
 	if resp.StatusCode != http.StatusOK && response.Error() == nil {
 		return 0, &response, fmt.Errorf("received status code %d from server", resp.StatusCode)
 	}
-	return uint64(resp.ContentLength), &response, nil
+	return length, &response, nil
 }
 
 // Query sends a command to the server and returns the Response.
@@ -1351,31 +1350,31 @@ func SplitResponseValuesByTime(queryString string, resp *Response, timeSize stri
 	return result, starts, ends
 }
 
-func FatcacheClient(queryString string) {
-	qs := NewQuery(queryString, DB, "s")
-	resp, _ := c.Query(qs)
-	values := ResponseToByteArray(resp, queryString)
-	mu.Lock()
-	semanticSegment := GetSemanticSegment(queryString)
-	mu.Unlock()
-	err := fatcacheConn.Set(&fatcache.Item{
-		Key:        semanticSegment[0:100],
-		Value:      values,
-		Flags:      0,
-		Expiration: 0,
-		CasID:      0,
-	})
-	if err != nil {
-		log.Println(err)
-		//log.Println("NOT STORED.")
-	} else {
-		//log.Printf("store:%s\n", ss)
-		log.Println("STORED.")
-		log.Println("set byte length:", len(values))
-	}
-}
+//func FatcacheClient(queryString string) {
+//	qs := NewQuery(queryString, DB, "s")
+//	resp, _ := c.Query(qs)
+//	values := ResponseToByteArray(resp, queryString)
+//	mu.Lock()
+//	semanticSegment := GetSemanticSegment(queryString)
+//	mu.Unlock()
+//	err := fatcacheConn.Set(&fatcache.Item{
+//		Key:        semanticSegment[0:100],
+//		Value:      values,
+//		Flags:      0,
+//		Expiration: 0,
+//		CasID:      0,
+//	})
+//	if err != nil {
+//		log.Println(err)
+//		//log.Println("NOT STORED.")
+//	} else {
+//		//log.Printf("store:%s\n", ss)
+//		log.Println("STORED.")
+//		log.Println("set byte length:", len(values))
+//	}
+//}
 
-// 按时间尺度分块，存入 cache
+// SetToFatache 按时间尺度分块，存入 cache
 func SetToFatache(queryString string, timeSize string) {
 	//log.Println("s")
 	mu.Lock()
@@ -1387,8 +1386,9 @@ func SetToFatache(queryString string, timeSize string) {
 	/* 把查询模版存入全局 map */
 	queryTemplate := GetQueryTemplate(queryString)
 	QueryTemplates[queryTemplate] = semanticSegment
-	mu.Unlock()
+
 	valuess, starts, ends := SplitResponseValuesByTime(queryString, resp, timeSize)
+	mu.Unlock()
 
 	for i, values := range valuess { // 查询结果分块
 		//  set 分块数据	set seg[timerange] vlen	value
@@ -1406,7 +1406,7 @@ func SetToFatache(queryString string, timeSize string) {
 		ss := fmt.Sprintf("%s[%d,%d]", semanticSegment, stStr, etStr)
 
 		err := fatcacheConn.Set(&fatcache.Item{
-			Key:        ss,
+			Key:        ss, // todo key 长度限制 250
 			Value:      byteVal,
 			Flags:      0,
 			Expiration: 0,
@@ -1424,7 +1424,7 @@ func SetToFatache(queryString string, timeSize string) {
 
 }
 
-// 按时间尺度分块，向 Fatcache 查询，返回结果的原始字节流
+// GetFromFatcache 按时间尺度分块，向 Fatcache 查询，返回结果的原始字节流
 func GetFromFatcache(queryString string, timeSize string) [][]byte {
 	results := make([][]byte, 0)
 
@@ -1496,6 +1496,23 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 	return results
 }
 
+func FatcacheClient(conn Client, queryString string, workerNum int) (*Response, uint64, uint8) {
+	log.Printf("thread number:%d\n", workerNum)
+
+	byteLength := uint64(0)
+	hitKind := uint8(0)
+
+	values := GetFromFatcache(queryString, TimeSize)
+
+	if len(values) == 0 {
+		SetToFatache(queryString, TimeSize)
+	} else {
+		hitKind = 1
+	}
+
+	return nil, byteLength, hitKind
+}
+
 // IntegratedClient /* STsCache */
 /*
 	1. 客户端接收查询语句
@@ -1518,8 +1535,26 @@ func InitStsConns() []*stscache.Client {
 	return conns
 }
 
-func IntegratedClient(conn Client, queryString string, workerNum int) *Response {
+func InitStsConnsArr(urlArr []string) []*stscache.Client {
+	conns := make([]*stscache.Client, 0)
+	for i := 0; i < len(urlArr); i++ {
+		conns = append(conns, stscache.New(urlArr[i]))
+	}
+	return conns
+}
+
+func IntegratedClient(conn Client, queryString string, workerNum int) (*Response, uint64, uint8) {
 	log.Printf("thread number:%d\n", workerNum)
+
+	CacheNum := len(STsConnArr)
+
+	if CacheNum == 0 {
+		CacheNum = 1
+	}
+
+	byteLength := uint64(0)
+	hitKind := uint8(0)
+
 	/* 原始查询语句的时间范围 */
 	startTime, endTime := GetQueryTimeRange(queryString) // 当查询的时间只有一半时，另一个值为 -1; 当查询时间为 "=" 时，两值相等
 
@@ -1543,13 +1578,16 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 	mu.Unlock()
 	/* 向 cache 查询数据 */
 	//values, _, err := stscacheConn.Get(semanticSegment, startTime, endTime)
-	values, _, err := STsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
+	//values, _, err := STsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
+	values, _, err := STsConnArr[workerNum%CacheNum].Get(semanticSegment, startTime, endTime)
+	byteLength = uint64(len(values))
 	if err != nil { // 缓存未命中
 		log.Printf("Get fail: %v\n", err)
 
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
 		resp, _ := conn.Query(q)
+		//fmt.Println(resp.ToString())
 
 		if !ResponseIsEmpty(resp) {
 
@@ -1561,10 +1599,11 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			//}
 			numOfTab := GetNumOfTable(resp)
 			remainValues := ResponseToByteArray(resp, queryString)
+			//fmt.Println(semanticSegment)
 			//go func() {
 			/* 存入 cache */
-			//err = stscacheConn.Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
+			//err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
+			err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
 				log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, queryString)
@@ -1578,11 +1617,12 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 		//} else if err != nil { // 异常
 		//	log.Fatalf("Error getting value: %v", err)
 
-		return resp
+		return resp, byteLength, hitKind
 	} else { // 缓存部分命中或完全命中
 
 		log.Printf("value length:%d\n", len(values))
-		TotalGetByteLength += uint64(len(values))
+		//TotalGetByteLength += uint64(len(values))
+		//atomic.AddUint64(&TotalGetByteLength, uint64(len(values)))
 
 		/* 把查询结果从字节流转换成 Response 结构 */
 		// todo 	values为空时的处理、多线程的原子性
@@ -1595,7 +1635,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			q := NewQuery(queryString, DB, "s")
 			resp, _ := conn.Query(q)
 
-			return resp
+			return resp, byteLength, hitKind
 		}
 		//log.Printf("recv_start_time:%d\n", recv_start_time)
 		//log.Printf("recv_end_time:%d\n", recv_end_time)
@@ -1634,11 +1674,41 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			q := NewQuery(remainQuery, DB, "s")
 			remainResponse, _ = conn.Query(q)
 		}
+		//else {
+		//	q := NewQuery(queryString, DB, "s")
+		//	resp, _ := conn.Query(q)
+		//	if !ResponseIsEmpty(resp) {
+		//
+		//		//ss := GetSemanticSegment(queryString)
+		//		st, et := GetResponseTimeRange(resp)
+		//		//if st == -1 || et == -1 {
+		//		//	log.Println("EMPTY.")
+		//		//	return
+		//		//}
+		//		numOfTab := GetNumOfTable(resp)
+		//		remainValues := ResponseToByteArray(resp, queryString)
+		//		//go func() {
+		//		/* 存入 cache */
+		//		//err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
+		//		err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
+		//		if err != nil {
+		//			log.Printf("set value length:%d\n", len(remainValues))
+		//			log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, queryString)
+		//			//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
+		//		} else {
+		//			log.Printf("STORED.")
+		//		}
+		//		//}()
+		//
+		//	}
+		//	return resp
+		//}
 
 		/* 把剩余数据存入 cache */
 		if !ResponseIsEmpty(remainResponse) {
 			log.Printf("partially GET.")
-			PartiallyGetNum++
+			//PartiallyGetNum++
+			hitKind = 1
 
 			remainSemanticSegment := semanticSegment
 			// todo 从剩余查询中获取时间范围
@@ -1651,8 +1721,8 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 			//fmt.Println(remainResponse.ToString())
 			// 异步写入剩余数据
 			//go func() {
-			//err = stscacheConn.Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
-			err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
+			//err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
+			err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: remainSemanticSegment, Value: remainValues, Time_start: remain_start_time, Time_end: remain_end_time, NumOfTables: numOfTab})
 			if err != nil {
 				log.Printf("set value length:%d\n", len(remainValues))
 				log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, remainQuery)
@@ -1664,15 +1734,16 @@ func IntegratedClient(conn Client, queryString string, workerNum int) *Response 
 
 			resultResponse := Merge("1h", convertedResponse, remainResponse)
 			if len(resultResponse) > 0 {
-				return resultResponse[0]
+				return resultResponse[0], byteLength, hitKind
 			}
-			return convertedResponse
+			return convertedResponse, byteLength, hitKind
 		} else {
 			log.Printf("GET.")
-			FullyGetNum++
+			hitKind = 2
+			//FullyGetNum++
 			//log.Printf("bytes get:%d\n", len(values))
 
-			return convertedResponse
+			return convertedResponse, byteLength, hitKind
 		}
 
 	}

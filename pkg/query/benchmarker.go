@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"time"
 
@@ -92,7 +93,8 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 	// todo cache启动参数
 	client.DB = config.DBName
 	client.STsCacheURL = config.CacheURL
-	client.STsConnArr = client.InitStsConns()
+	STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
+	client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
 	if config.UseCache == "false" {
 		client.UseCache = false
 	}

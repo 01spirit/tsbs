@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/HdrHistogram/hdrhistogram-go"
-	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,10 +35,18 @@ type statProcessorArgs struct {
 
 // statProcessor is used to collect, analyze, and print query execution statistics.
 type defaultStatProcessor struct {
-	args        *statProcessorArgs
-	wg          sync.WaitGroup
-	c           chan *Stat // c is the channel for Stats to be sent for processing
-	opsCount    uint64
+	args     *statProcessorArgs
+	wg       sync.WaitGroup
+	c        chan *Stat // c is the channel for Stats to be sent for processing
+	opsCount uint64
+	//
+	totalByteLength    uint64
+	prevByteLength     uint64
+	totalFullyGetNum   uint64
+	prevFullyGetNum    uint64
+	totalPartialGetNum uint64
+	prevPartialGetNum  uint64
+
 	startTime   time.Time
 	endTime     time.Time
 	statMapping map[string]*statGroup
@@ -96,12 +103,15 @@ func (sp *defaultStatProcessor) process(workers uint) {
 	sp.startTime = time.Now()
 	prevTime := sp.startTime
 	prevRequestCount := uint64(0)
-	prevByteLength := uint64(0)
-	prevFullyGetNum := uint64(0)
-	prevPartiallyGetNum := uint64(0)
 
 	for stat := range sp.c {
 		atomic.AddUint64(&sp.opsCount, 1)
+		atomic.AddUint64(&sp.totalByteLength, stat.byteLength)
+		if stat.hitKind == 2 {
+			atomic.AddUint64(&sp.totalFullyGetNum, 1)
+		} else if stat.hitKind == 1 {
+			atomic.AddUint64(&sp.totalPartialGetNum, 1)
+		}
 		if i < sp.args.burnIn {
 			i++
 			statPool.Put(stat)
@@ -147,8 +157,8 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			took := now.Sub(prevTime)
 
 			// todo byte length
-			intervalBandWidth := float64(client.TotalGetByteLength-prevByteLength) / float64(took.Seconds())
-			overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
+			intervalBandWidth := float64(sp.totalByteLength-sp.prevByteLength) / float64(took.Seconds())
+			overallBandWidth := float64(sp.totalByteLength) / float64(sinceStart.Seconds())
 
 			intervalQueryRate := float64(sp.opsCount-prevRequestCount) / float64(took.Seconds())
 			overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
@@ -160,15 +170,15 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			//)
 
 			// todo 完全命中和部分命中
-			intervalFullyGetNum := client.FullyGetNum - prevFullyGetNum
-			overallFullyGetNum := client.FullyGetNum
-			intervalPartiallyGetNum := client.PartiallyGetNum - prevPartiallyGetNum
-			overallPartiallyGetNum := client.PartiallyGetNum
+			intervalFullyGetNum := sp.totalFullyGetNum - sp.prevFullyGetNum
+			overallFullyGetNum := sp.totalFullyGetNum
+			intervalPartiallyGetNum := sp.totalPartialGetNum - sp.prevPartialGetNum
+			overallPartiallyGetNum := sp.totalPartialGetNum
 
-			intervalFullyGetRate := float64(client.FullyGetNum-prevFullyGetNum) / float64(100)
-			overallFullyGetRate := float64(client.FullyGetNum) / float64(i-sp.args.burnIn)
-			intervalPartiallyGetRate := float64(client.PartiallyGetNum-prevPartiallyGetNum) / float64(100)
-			overallPartiallyGetRate := float64(client.PartiallyGetNum) / float64(i-sp.args.burnIn)
+			intervalFullyGetRate := float64(intervalFullyGetNum) / float64(100)
+			overallFullyGetRate := float64(sp.totalFullyGetNum) / float64(i-sp.args.burnIn)
+			intervalPartiallyGetRate := float64(intervalPartiallyGetNum) / float64(100)
+			overallPartiallyGetRate := float64(sp.totalPartialGetNum) / float64(i-sp.args.burnIn)
 
 			_, err := fmt.Fprintf(os.Stderr, "After %d queries with %d workers:\n\tInterval query rate: %0.2f queries/sec\tOverall query rate: %0.2f queries/sec\n",
 				i-sp.args.burnIn,
@@ -209,20 +219,20 @@ func (sp *defaultStatProcessor) process(workers uint) {
 				log.Fatal(err)
 			}
 			prevRequestCount = sp.opsCount
-			prevByteLength = client.TotalGetByteLength
-			prevFullyGetNum = client.FullyGetNum
-			prevPartiallyGetNum = client.PartiallyGetNum
+			sp.prevByteLength = sp.totalByteLength
+			sp.prevFullyGetNum = sp.totalFullyGetNum
+			sp.prevPartialGetNum = sp.totalPartialGetNum
 
 			prevTime = now
 		}
 	}
 	sinceStart := time.Now().Sub(sp.startTime)
 	overallQueryRate := float64(sp.opsCount) / float64(sinceStart.Seconds())
-	overallBandWidth := float64(client.TotalGetByteLength) / float64(sinceStart.Seconds())
-	overallFullyGetNum := client.FullyGetNum
-	overallPartiallyGetNum := client.PartiallyGetNum
-	overallFullyGetRate := float64(client.FullyGetNum) / float64(i-sp.args.burnIn)
-	overallPartiallyGetRate := float64(client.PartiallyGetNum) / float64(i-sp.args.burnIn)
+	overallBandWidth := float64(sp.totalByteLength) / float64(sinceStart.Seconds())
+	overallFullyGetNum := sp.totalFullyGetNum
+	overallPartiallyGetNum := sp.totalPartialGetNum
+	overallFullyGetRate := float64(sp.totalFullyGetNum) / float64(i-sp.args.burnIn)
+	overallPartiallyGetRate := float64(sp.totalPartialGetNum) / float64(i-sp.args.burnIn)
 
 	// the final stats output goes to stdout:
 	// todo bandwidth

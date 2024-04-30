@@ -107,7 +107,7 @@ func (uc *udpclient) Query(q Query) (*Response, error) {
 	return nil, fmt.Errorf("Querying via UDP is not supported")
 }
 
-func (uc *udpclient) QueryFromDatabase(q Query) (uint64, *Response, error) {
+func (uc *udpclient) QueryFromDatabase(q Query) (int64, *Response, error) {
 	return 0, nil, nil
 }
 
