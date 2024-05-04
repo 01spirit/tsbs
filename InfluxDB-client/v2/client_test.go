@@ -1291,7 +1291,7 @@ func TestRepeatSetToStscache(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	fmt.Println(convertedResponse.ToString())
 }
 
@@ -1335,7 +1335,7 @@ func TestIntegratedClient(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1383,7 +1383,7 @@ func TestIntegratedClientIOT(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1436,7 +1436,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1485,7 +1485,7 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1551,7 +1551,7 @@ func TestIntegratedClientIOT2(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse := ByteArrayToResponse(values)
+	convertedResponse, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)

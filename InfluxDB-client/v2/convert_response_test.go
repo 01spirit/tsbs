@@ -181,7 +181,7 @@ func TestByteArrayToResponse(t *testing.T) {
 			fmt.Println("Get successfully")
 
 			/* 字节数组转换为结果类型 */
-			respConverted := ByteArrayToResponse(valueBytes)
+			respConverted, _, _, _ := ByteArrayToResponse(valueBytes)
 			fmt.Println("Convert successfully")
 
 			if strings.Compare(respString, respConverted.ToString()) != 0 {
@@ -267,7 +267,7 @@ func TestIoT(t *testing.T) {
 			fmt.Println(respString)
 			respBytes := ResponseToByteArray(resp, tt.queryString)
 
-			respConvert := ByteArrayToResponse(respBytes)
+			respConvert, _, _, _ := ByteArrayToResponse(respBytes)
 			respConvertString := respConvert.ToString()
 			fmt.Println(respConvertString)
 			fmt.Println(respBytes)

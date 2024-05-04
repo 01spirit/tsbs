@@ -24,12 +24,12 @@ func GetNumOfTable(resp *Response) int64 {
 	return int64(len(resp.Results[0].Series))
 }
 
-var mu3 sync.Mutex
+var mu4 sync.Mutex
 
 // GetResponseTimeRange 获取查询结果的时间范围
 // 从 response 中取数据，可以确保起止时间都有，只需要进行类型转换
 func GetResponseTimeRange(resp *Response) (int64, int64) {
-	mu.Lock()
+	mu4.Lock()
 	var minStartTime int64
 	var maxEndTime int64
 	var ist int64
@@ -59,9 +59,14 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 			ist = TimeStringToInt64(st)
 			iet = TimeStringToInt64(et)
 		} else if st, ok := start.(json.Number); ok {
-			et := end.(json.Number)
-			ist, _ = st.Int64()
-			iet, _ = et.Int64()
+			et, ok := end.(json.Number)
+			if !ok {
+				continue
+			} else {
+				ist, _ = st.Int64()
+				iet, _ = et.Int64()
+			}
+
 		}
 
 		/* 更新起止时间范围 	两个时间可能不在一个表中 ? */
@@ -72,7 +77,7 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 			maxEndTime = iet
 		}
 	}
-	mu.Unlock()
+	mu4.Unlock()
 	return minStartTime, maxEndTime
 }
 

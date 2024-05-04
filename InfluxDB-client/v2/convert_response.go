@@ -145,11 +145,11 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
  * 如何区分两种tag：当前条件下没办法，但是可以通过调整查询语句避免这一问题：把出现在 WHRER 中的 tag 也写进 GROUP BY，让转换前后的结果中都存在多余的谓词 tag
  */
 // 字节数组转换成结果类型
-func ByteArrayToResponse(byteArray []byte) *Response {
+func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]string) {
 
 	/* 没有数据 */
 	if len(byteArray) == 0 {
-		return nil
+		return nil, nil, nil, nil
 	}
 
 	valuess := make([][][]interface{}, 0) // 存放不同表(Series)的所有 values
@@ -158,7 +158,10 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 
 	seprateSemanticSegments := make([]string, 0) // 存放所有表各自的SCHEMA
 	seriesLength := make([]int64, 0)             // 每张表的数据的总字节数
-	timeRangeArr := make([][]int64, 0)           // 每张表的剩余待查询时间范围
+
+	flagArr := make([]uint8, 0)
+	timeRangeArr := make([][]int64, 0) // 每张表的剩余待查询时间范围
+	tagArr := make([][]string, 0)
 
 	var curSeg string        // 当前表的语义段
 	var curLen int64         // 当前表的数据的总字节数
@@ -191,6 +194,7 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 			index++ // uint8
 			flag := uint8(byteArray[index])
 			index++
+			flagArr = append(flagArr, flag)
 			if flag == 1 {
 				singleTimeRange := make([]int64, 2)
 				ftimeStartIdx := index // 索引指向第一个时间戳
@@ -324,17 +328,31 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 		nameIndex := strings.Index(merged[0], ".") // 提取 measurement name
 		name := merged[0][:nameIndex]
 		tags := make(map[string]string)
-		/* 取出所有tag */
-		for _, m := range merged {
-			tag := m[nameIndex+1 : len(m)]
-			eqIdx := strings.Index(tag, "=") // tag 和 value 由  "=" 连接
-			if eqIdx <= 0 {                  // 没有等号说明没有tag
-				break
-			}
-			key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
-			val := tag[eqIdx+1 : len(tag)]
-			tags[key] = val // 存入 tag map
+		/* 取出所有tag 当前只处理了一个tag的情况*/
+		tag := merged[0][nameIndex+1 : len(merged[0])]
+		eqIdx := strings.Index(tag, "=") // tag 和 value 由  "=" 连接
+		if eqIdx <= 0 {                  // 没有等号说明没有tag
+			break
 		}
+		key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
+		val := tag[eqIdx+1 : len(tag)]
+		tags[key] = val // 存入 tag map
+
+		tmpTagArr := make([]string, 2)
+		tmpTagArr[0] = key
+		tmpTagArr[1] = val
+		tagArr = append(tagArr, tmpTagArr)
+
+		//for _, m := range merged {
+		//	tag := m[nameIndex+1 : len(m)]
+		//	eqIdx := strings.Index(tag, "=") // tag 和 value 由  "=" 连接
+		//	if eqIdx <= 0 {                  // 没有等号说明没有tag
+		//		break
+		//	}
+		//	key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
+		//	val := tag[eqIdx+1 : len(tag)]
+		//	tags[key] = val // 存入 tag map
+		//}
 
 		/* 处理sf 如果有聚合函数，列名要用函数名，否则用sf中的列名*/
 		columns := make([]string, 0)
@@ -381,7 +399,7 @@ func ByteArrayToResponse(byteArray []byte) *Response {
 		Err:     "",
 	}
 
-	return &resp
+	return &resp, flagArr, timeRangeArr, tagArr
 }
 
 // InterfaceToByteArray 把查询结果的 interface{} 类型转换为 []byte

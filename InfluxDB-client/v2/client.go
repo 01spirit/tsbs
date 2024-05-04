@@ -1374,26 +1374,40 @@ func SplitResponseValuesByTime(queryString string, resp *Response, timeSize stri
 //	}
 //}
 
+var mu3 sync.Mutex
+
 // SetToFatache 按时间尺度分块，存入 cache
 func SetToFatache(queryString string, timeSize string) {
 	//log.Println("s")
-	mu.Lock()
-	semanticSegment := GetSemanticSegment(queryString)
+	mu3.Lock()
 	qs := NewQuery(queryString, DB, "s")
 	resp, _ := c.Query(qs)
 	datatype := GetDataTypeArrayFromResponse(resp)
 
 	/* 把查询模版存入全局 map */
 	queryTemplate := GetQueryTemplate(queryString)
-	QueryTemplates[queryTemplate] = semanticSegment
+	semanticSegment := ""
+	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 
-	valuess, starts, ends := SplitResponseValuesByTime(queryString, resp, timeSize)
-	mu.Unlock()
+		semanticSegment = GetSemanticSegment(queryString)
+		//log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
+		/* 存入全局 map */
+
+		QueryTemplates[queryTemplate] = semanticSegment
+
+	} else {
+		semanticSegment = ss
+	}
+
+	valuess, starts, ends := SplitResponseValuesByTime(queryString, resp, timeSize) // valuess 是四维数组，分别是：一个查询结果按时间划分的多个块；每个块中的多个表；每个表中的多行数据；每行数据的多个列
+	mu3.Unlock()
 
 	for i, values := range valuess { // 查询结果分块
 		//  set 分块数据	set seg[timerange] vlen	value
 		byteVal := make([]byte, 0)
 		for _, value := range values { // 每个分块的子表
+
+			// todo 是否需要每张表分开存，全存到一起的话没办法再转换回来
 			for _, val := range value { // 每个子表的行
 				for t, v := range val { // 每个行的列
 					tmp := InterfaceToByteArray(t, datatype[t], v)
@@ -1446,7 +1460,7 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 		// 查询时间范围小于分割的时间尺度，直接查询
 		if allTime <= interval {
 			// 直接向 cache Get
-			startTime, endTime := GetQueryTimeRange(queryString)
+			//startTime, endTime = GetQueryTimeRange(queryString)
 			ss := fmt.Sprintf("%s[%d,%d]", semanticSegment, startTime, endTime)
 
 			/* 向 cache Get */
@@ -1454,10 +1468,11 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Printf("\tget:%s\n", ss)
+				//log.Printf("\tget:%s\n", ss)
 				log.Println("\tGET.")
 				log.Println("\tget byte length:", len(items.Value))
 
+				// todo 结果从字节流转换回来
 				results = append(results, items.Value)
 				return results
 			}
@@ -1482,9 +1497,11 @@ func GetFromFatcache(queryString string, timeSize string) [][]byte {
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Printf("\tget:%s\n", ss)
+					//log.Printf("\tget:%s\n", ss)
 					log.Println("\tGET.")
 					log.Println("\tget byte length:", len(items.Value))
+
+					// todo 结果从字节流转换回来
 					results = append(results, items.Value)
 				}
 
@@ -1626,7 +1643,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 
 		/* 把查询结果从字节流转换成 Response 结构 */
 		// todo 	values为空时的处理、多线程的原子性
-		convertedResponse := ByteArrayToResponse(values)
+		convertedResponse, _, _, _ := ByteArrayToResponse(values)
 		//fmt.Println(convertedResponse.ToString())
 
 		/* 从cache返回的数据的时间范围 */
