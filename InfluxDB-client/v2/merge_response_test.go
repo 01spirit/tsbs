@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -345,6 +346,42 @@ func TestSortResponses2(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMergeContainedResultTable(t *testing.T) {
+	queryString1 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_0' or \"name\" = 'truck_1' or \"name\" = 'truck_3' or \"name\" = 'truck_4' or \"name\" = 'truck_5' AND TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:00:10Z' GROUP BY \"name\""
+	queryString2 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_0' or \"name\" = 'truck_1' or \"name\" = 'truck_2' or \"name\" = 'truck_4' AND TIME >= '2018-01-01T00:00:20Z' AND TIME <= '2018-01-01T00:00:30Z' GROUP BY \"name\""
+	queryString3 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_1' or \"name\" = 'truck_2' or \"name\" = 'truck_3' or \"name\" = 'truck_4' or \"name\" = 'truck_5' AND TIME >= '2018-01-01T00:00:40Z' AND TIME <= '2018-01-01T00:00:50Z' GROUP BY \"name\""
+
+	urlString := "192.168.1.102:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	log.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	query1 := NewQuery(queryString1, "iot_small", "s")
+	resp1, _ := c.Query(query1)
+	query2 := NewQuery(queryString2, "iot_small", "s")
+	resp2, _ := c.Query(query2)
+	query3 := NewQuery(queryString3, "iot_small", "s")
+	resp3, _ := c.Query(query3)
+	fmt.Printf("resp 1 :\n")
+	fmt.Println(resp1.ToString())
+	fmt.Printf("resp 2 :\n")
+	fmt.Println(resp2.ToString())
+	fmt.Printf("resp 3 :\n")
+	fmt.Println(resp3.ToString())
+
+	bigResp := Merge("1h", resp1, resp3)
+	fmt.Printf("big resp length : %d\n", len(bigResp))
+	fmt.Printf("big resp :\n")
+	fmt.Println(bigResp[0].ToString())
+
+	//containedResp := MergeContainedResultTable(bigResp[0], resp2)
+	containedResp := Merge("1h", bigResp[0], resp2)
+	fmt.Printf("contained Resp :\n")
+	fmt.Println(containedResp[0].ToString())
 }
 
 func TestMergeResultTable(t *testing.T) {

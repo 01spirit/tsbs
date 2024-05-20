@@ -18,7 +18,7 @@ func NewSimpleIoT(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details.
-func (i *SimpleIoT) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+func (i *SimpleIoT) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
 	fc, ok := i.core.(SimpleIoTFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)

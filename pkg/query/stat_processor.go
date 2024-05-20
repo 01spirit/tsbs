@@ -237,8 +237,8 @@ func (sp *defaultStatProcessor) process(workers uint) {
 	// the final stats output goes to stdout:
 	// todo bandwidth
 	//_, err := fmt.Printf("Run complete after %d queries with %d workers (Overall query rate %0.2f queries/sec):\n", i-sp.args.burnIn, workers, overallQueryRate)
-	_, err := fmt.Printf("Run complete after %d queries with %d workers \n\t\t(Overall query rate %0.2f queries/sec):(Overall bandwidth %0.2f queries/sec):\n"+
-		"\t\t(Overall fully get number %d ):(Overall fully get rate %0.2f ):\n\t\t(Overall partially get number %d ):(Overall partially get rate %0.2f )\n",
+	_, err := fmt.Printf("Run complete after %d queries with %d workers \n\t\t(Overall query rate %0.2f queries/sec)\n\t\t(Overall bandwidth %0.2f bytes/sec)\n"+
+		"\t\t(Overall fully get number %d )\n\t\t(Overall fully get rate %0.2f )\n\t\t(Overall partially get number %d )\n\t\t(Overall partially get rate %0.2f )\n",
 		i-sp.args.burnIn, workers, overallQueryRate, overallBandWidth, overallFullyGetNum, overallFullyGetRate, overallPartiallyGetNum, overallPartiallyGetRate)
 
 	if err != nil {

@@ -23,7 +23,7 @@ func NewHighCPU(hosts int) utils.QueryFillerMaker {
 }
 
 // Fill fills in the query.Query with query details
-func (d *HighCPU) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+func (d *HighCPU) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
 	fc, ok := d.core.(HighCPUFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(d.core)

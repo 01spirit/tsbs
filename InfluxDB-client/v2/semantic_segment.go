@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -443,23 +444,58 @@ func SeperateSM(integratedSM string) []string {
 	return sepSM
 }
 
+var mu5 sync.Mutex
+
 // GetSeperateSemanticSegment 获取每张子表的 SM
 func GetSeperateSemanticSegment(queryString string) []string {
 	results := make([]string, 0)
 
-	semanticSegment := GetSemanticSegment(queryString)
-	idx := strings.Index(semanticSegment, "}")
-	integratedSM := semanticSegment[:idx+1]
-	commonFields := semanticSegment[idx+1:]
+	mu5.Lock()
+	defer mu5.Unlock()
+	queryTemplate := GetQueryTemplate(queryString)
+	semanticSegment := ""
+	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 
-	sepSM := SeperateSM(integratedSM)
+		semanticSegment = GetSemanticSegment(queryString)
+		QueryTemplates[queryTemplate] = semanticSegment
+		idx := strings.Index(semanticSegment, "}")
+		integratedSM := semanticSegment[:idx+1]
+		commonFields := semanticSegment[idx+1:]
 
-	for i := range sepSM {
-		tmp := fmt.Sprintf("{(%s)}%s", sepSM[i], commonFields)
-		results = append(results, tmp)
+		sepSM := SeperateSM(integratedSM)
+
+		for i := range sepSM {
+			tmp := fmt.Sprintf("{(%s)}%s", sepSM[i], commonFields)
+			results = append(results, tmp)
+		}
+
+		SeprateSegments[semanticSegment] = results
+
+		return results
+	} else {
+		semanticSegment = ss
+
+		if sepseg, ok := SeprateSegments[semanticSegment]; !ok {
+			idx := strings.Index(semanticSegment, "}")
+			integratedSM := semanticSegment[:idx+1]
+			commonFields := semanticSegment[idx+1:]
+
+			sepSM := SeperateSM(integratedSM)
+
+			for i := range sepSM {
+				tmp := fmt.Sprintf("{(%s)}%s", sepSM[i], commonFields)
+				results = append(results, tmp)
+			}
+
+			SeprateSegments[semanticSegment] = results
+
+			return results
+		} else {
+			return sepseg
+		}
+
 	}
 
-	return results
 }
 
 func GetSeparateSemanticSegmentWithNullTag(seperateSemanticSegment string, nullTags []string) string {

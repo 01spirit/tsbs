@@ -86,6 +86,10 @@ func (c *Core) GetRandomTrucks(nTrucks int) ([]string, error) {
 	return getRandomTrucks(nTrucks, c.Scale)
 }
 
+func (c *Core) GetContinuousRandomTrucks() ([]string, error) {
+	return getContinuousRandomTrucks()
+}
+
 // getRandomTruckNames returns a subset of numTrucks names of a permutation of truck names,
 // numbered from 0 to totalTrucks.
 // Ex.: truck_12, truck_7, truck_25 for numTrucks=3 and totalTrucks=30 (3 out of 30)
@@ -107,6 +111,20 @@ func getRandomTrucks(numTrucks int, totalTrucks int) ([]string, error) {
 		truckNames = append(truckNames, fmt.Sprintf("truck_%d", n))
 	}
 
+	return truckNames, nil
+}
+
+func getContinuousRandomTrucks() ([]string, error) {
+
+	randomNumbers, err := common.GetContinuousRandomSubset()
+	if err != nil {
+		return nil, err
+	}
+
+	truckNames := []string{}
+	for _, n := range randomNumbers {
+		truckNames = append(truckNames, fmt.Sprintf("truck_%d", n))
+	}
 	return truckNames, nil
 }
 
@@ -189,7 +207,7 @@ type DiagnosticsFuelFiller interface {
 }
 
 type ReadingsPositionFiller interface {
-	ReadingsPosition(query.Query, int64, int64)
+	ReadingsPosition(query.Query, int64, int64, int)
 }
 
 type ReadingsFuelFiller interface {

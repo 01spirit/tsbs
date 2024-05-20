@@ -221,11 +221,14 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 
 	// 加入两个分布，用于生成随机时间范围
 	zipfian := distributionGenerator.NewZipfianWithItems(10, distributionGenerator.ZipfianConstant)
-	cntr := counter.NewCounter(10)
-	latest := distributionGenerator.NewSkewedLatest(cntr)
+	cntrForNew := counter.NewCounter(5 * 365)
+	latestForNew := distributionGenerator.NewSkewedLatest(cntrForNew)
+	cntrForOld := counter.NewCounter(1 * 365)
+	latestForOld := distributionGenerator.NewSkewedLatest(cntrForOld)
 
 	zipNums := make([]int64, 0)
 	latestNums := make([]int64, 0)
+	newOrOld := make([]int, 0) // 1 为旧数据，0 为新数据
 	rz := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rl := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -235,9 +238,19 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 
 		zipNum := zipfian.Next(rz)
 		zipNums = append(zipNums, zipNum)
-		latestNum := latest.Next(rl)
-		latestNums = append(latestNums, latestNum)
-		//fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\n", zipNum, latestNum)
+
+		rdm := rand.Intn(common.Ratio[0] + common.Ratio[1])
+		if rdm < common.Ratio[0] { // 生成对最新数据的查询
+			latestNumForNew := latestForNew.Next(rl)
+			latestNums = append(latestNums, latestNumForNew)
+			newOrOld = append(newOrOld, 0)
+		} else { // 生成对旧数据的查询
+			latestNumForOld := latestForOld.Next(rl)
+			latestNums = append(latestNums, latestNumForOld)
+			newOrOld = append(newOrOld, 1)
+		}
+
+		//fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\n", zipNum, latestNumForNew)
 		mu.Unlock()
 	}
 
@@ -256,9 +269,9 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 	for i := 0; i < int(c.Limit); i++ {
 		q := useGen.GenerateEmptyQuery()
 
-		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\n", zipNums[i], latestNums[i])
+		//fmt.Printf("ratio:\t%d\tzipnum:\t%d\tlatestnum:\t%dnew:\t%d\n",common.Ratio, zipNums[i], latestNums[i], newOrOld[i])
 
-		q = filler.Fill(q, zipNums[i], latestNums[i])
+		q = filler.Fill(q, zipNums[i], latestNums[i], newOrOld[i])
 
 		if currentGroup == c.InterleavedGroupID {
 			err := enc.Encode(q)
@@ -290,6 +303,8 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 			currentGroup = 0
 		}
 	}
+
+	fmt.Printf("ratio:\t%d\n", common.Ratio)
 
 	// Print stats:
 	keys := []string{}

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -64,6 +65,15 @@ func TestGetRandomSubsetPerm(t *testing.T) {
 			prev = x
 		}
 	}
+}
+
+func TestGetContinuousRandomSubset(t *testing.T) {
+
+	for i := 0; i < 100; i++ {
+		results, _ := GetContinuousRandomSubset()
+		fmt.Println(results)
+	}
+
 }
 
 func TestGetRandomSubsetPermError(t *testing.T) {

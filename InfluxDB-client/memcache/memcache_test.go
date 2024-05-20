@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package memcache provides a client for the memcached cache server.
+// Package fatcache provides a client for the memcached cache server.
 package memcache
 
 //import (
@@ -350,7 +350,7 @@ package memcache
 //
 //func testTouchWithClient(t *testing.T, c *Client) {
 //	if testing.Short() {
-//		t.Log("Skipping testing memcache Touch with testing in Short mode")
+//		t.Log("Skipping testing fatcache Touch with testing in Short mode")
 //		return
 //	}
 //

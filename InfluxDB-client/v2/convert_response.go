@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/timescale/tsbs/InfluxDB-client/models"
+	"math"
+	"regexp"
 	"sync"
 
 	//"github.com/influxdata/influxdb1-client/models"
@@ -40,7 +42,7 @@ func (resp *Response) ToString() string {
 			for t, tag := range tags {
 				result += fmt.Sprintf("%s=%s ", tags[t], resp.Results[r].Series[s].Tags[tag])
 			}
-			result += "\r\n" // 列名和数据间换行  "\r\n" 还是 "\n" ?	用 "\r\n", 因为 memcache 读取换行符是 CRLF("\r\n")
+			result += "\r\n" // 列名和数据间换行  "\r\n" 还是 "\n" ?	用 "\r\n", 因为 fatcache 读取换行符是 CRLF("\r\n")
 
 			for v := range resp.Results[r].Series[s].Values {
 				for vv := range resp.Results[r].Series[s].Values[v] { // 从JSON转换出来之后只有 string 和 json.Number 两种类型
@@ -70,6 +72,89 @@ func (resp *Response) ToString() string {
 var mu2 sync.Mutex
 
 // ResponseToByteArray 把数据库的查询结果转换为字节流
+//func ResponseToByteArray(resp *Response, queryString string) []byte {
+//	result := make([]byte, 0)
+//
+//	/* 结果为空 */
+//	if ResponseIsEmpty(resp) {
+//		//return StringToByteArray("empty response")
+//		mu2.Lock()
+//		seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
+//		mu2.Unlock()
+//
+//		for _, ss := range seperateSemanticSegment {
+//			zero, _ := Int64ToByteArray(int64(0))
+//			result = append(result, []byte(ss)...)
+//			result = append(result, []byte(" ")...)
+//			result = append(result, zero...)
+//		}
+//
+//		return result
+//	}
+//
+//	/* 获取每一列的数据类型 */
+//	datatypes := GetDataTypeArrayFromResponse(resp)
+//	mu2.Lock()
+//	/* 获取每张表单独的语义段 */
+//	//seperateSemanticSegment := SeperateSemanticSegment(queryString, resp)	// 已弃用
+//	seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
+//	nullTags := make([]string, 0)
+//	if len(seperateSemanticSegment) < len(resp.Results[0].Series) {
+//
+//		tagMap := resp.Results[0].Series[0].Tags
+//		for key, val := range tagMap {
+//			if val == "" {
+//				nullTags = append(nullTags, key)
+//			}
+//		}
+//	}
+//	nullSegment := GetSeparateSemanticSegmentWithNullTag(seperateSemanticSegment[0], nullTags)
+//	newSepSeg := make([]string, 0)
+//	if nullSegment == "" {
+//		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
+//	} else {
+//		newSepSeg = append(newSepSeg, nullSegment)
+//		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
+//	}
+//	mu2.Unlock()
+//	/* 每行数据的字节数 */
+//	bytesPerLine := BytesPerLine(datatypes)
+//
+//	for i, s := range resp.Results[0].Series {
+//		numOfValues := len(s.Values)                                             // 表中数据行数
+//		bytesPerSeries, _ := Int64ToByteArray(int64(bytesPerLine * numOfValues)) // 一张表的数据的总字节数：每行字节数 * 行数
+//
+//		/* 存入一张表的 semantic segment 和表内所有数据的总字节数 */
+//		result = append(result, []byte(newSepSeg[i])...)
+//		result = append(result, []byte(" ")...)
+//		result = append(result, bytesPerSeries...)
+//		//result = append(result, []byte("\r\n")...) // 每个子表的字节数 和 数据 之间的换行符
+//
+//		//fmt.Printf("%s %d\r\n", seperateSemanticSegment[i], bytesPerSeries)
+//
+//		/* 数据转换成字节数组，存入 */
+//		for _, v := range s.Values {
+//			for j, vv := range v {
+//				//if vv == nil {
+//				//	log.Println("nil")
+//				//}
+//				datatype := datatypes[j]
+//				//datatype := "float64"
+//				//datatype := Fields[s.Name][s.Columns[k]]
+//				tmpBytes := InterfaceToByteArray(j, datatype, vv)
+//				result = append(result, tmpBytes...)
+//
+//			}
+//			/* 如果传入cache的数据之间不需要换行，就把这一行注释掉；如果cache处理数据时也没加换行符，那么从字节数组转换成结果类型的部分也要修改 */
+//			//result = append(result, []byte("\r\n")...) // 每条数据之后换行
+//		}
+//		/* 如果表之间需要换行，在这里添加换行符，但是从字节数组转换成结果类型的部分也要修改 */
+//		//result = append(result, []byte("\r\n")...) // 每条数据之后换行
+//	}
+//
+//	return result
+//}
+
 func ResponseToByteArray(resp *Response, queryString string) []byte {
 	result := make([]byte, 0)
 
@@ -139,17 +224,63 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 	return result
 }
 
+// RemainQueryString 根据 cache 返回结果中的时间范围构造一个剩余查询语句
+func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int64, tagArr [][]string) (string, int64, int64) {
+	if len(flagArr) == 0 || len(timeRangeArr) == 0 || len(tagArr) == 0 {
+		return "", 0, 0
+	}
+
+	var maxTime int64 = 0
+	var minTime int64 = math.MaxInt64
+	result := ""
+	tagName := tagArr[0][0]
+	matchStr := `(?i)(.+)WHERE.+`
+	conditionExpr := regexp.MustCompile(matchStr)
+	if ok, _ := regexp.MatchString(matchStr, queryString); !ok {
+		return "", 0, 0
+	}
+	condExprMatch := conditionExpr.FindStringSubmatch(queryString)
+	selectExpr := condExprMatch[1]
+
+	conditions := make([]string, 0)
+	for i := 0; i < len(flagArr); i++ {
+		if flagArr[i] == 1 {
+			if minTime > timeRangeArr[i][0] {
+				minTime = timeRangeArr[i][0]
+			}
+			if maxTime < timeRangeArr[i][1] {
+				maxTime = timeRangeArr[i][1]
+			}
+			tmpCondition := ""
+			startTime := TimeInt64ToString(timeRangeArr[i][0])
+			endTime := TimeInt64ToString(timeRangeArr[i][1])
+			key := tagArr[i][0]
+			val := tagArr[i][1]
+			if val == "null" {
+				val = ""
+			}
+			tmpCondition = fmt.Sprintf("(\"%s\"='%s' AND TIME >= '%s' AND TIME <= '%s')", key, val, startTime, endTime)
+			conditions = append(conditions, tmpCondition)
+		}
+	}
+	remainConditions := strings.Join(conditions, " OR ")
+
+	result = fmt.Sprintf("%sWHERE %s GROUP BY \"%s\"", selectExpr, remainConditions, tagName)
+
+	return result, minTime, maxTime
+}
+
 /* todo	由字节数组转换成结果类型时，在查询语句的谓词中出现的tag不应该被添加到结果类型的 Tags 中，Tags中只有 GROUP BY tag：如何区分 谓词的tag 和 GROUP BY tag
  * 在生成语义段的过程中，关于tag的谓词会被添加到SM中，而不是留在SP；（用作为全局变量的TagKV（当前数据库的所有tag及其值）判断谓词是否是tag）
  * GROUP BY tag 会和 tag 谓词一起出现在SM中
  * 如何区分两种tag：当前条件下没办法，但是可以通过调整查询语句避免这一问题：把出现在 WHRER 中的 tag 也写进 GROUP BY，让转换前后的结果中都存在多余的谓词 tag
  */
 // 字节数组转换成结果类型
-func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]string) {
+func ByteArrayToResponse(byteArray []byte) (*Response, int, []uint8, [][]int64, [][]string) {
 
 	/* 没有数据 */
 	if len(byteArray) == 0 {
-		return nil, nil, nil, nil
+		return nil, 0, nil, nil, nil
 	}
 
 	valuess := make([][][]interface{}, 0) // 存放不同表(Series)的所有 values
@@ -159,6 +290,7 @@ func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]s
 	seprateSemanticSegments := make([]string, 0) // 存放所有表各自的SCHEMA
 	seriesLength := make([]int64, 0)             // 每张表的数据的总字节数
 
+	flagNum := 0
 	flagArr := make([]uint8, 0)
 	timeRangeArr := make([][]int64, 0) // 每张表的剩余待查询时间范围
 	tagArr := make([][]string, 0)
@@ -181,6 +313,8 @@ func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]s
 
 		/* SCHEMA行 格式如下 	SSM:包含每张表单独的tags	len:一张表的数据的总字节数 */
 		//  {SSM}#{SF}#{SP}#{SG} len\r\n
+		curSeg = ""
+		curLen = 0
 		if byteArray[index] == 123 && byteArray[index+1] == 40 { // "{(" ASCII码	表示语义段的开始位置
 			ssStartIdx := index
 			for byteArray[index] != 32 { // ' '空格，表示语义段的结束位置的后一位
@@ -196,6 +330,7 @@ func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]s
 			index++
 			flagArr = append(flagArr, flag)
 			if flag == 1 {
+				flagNum++
 				singleTimeRange := make([]int64, 2)
 				ftimeStartIdx := index // 索引指向第一个时间戳
 				index += 8
@@ -217,6 +352,13 @@ func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]s
 				}
 				singleTimeRange[1] = endTime
 
+				//fmt.Printf("%d %d\n", startTime, endTime)
+
+				timeRangeArr = append(timeRangeArr, singleTimeRange)
+			} else {
+				singleTimeRange := make([]int64, 2)
+				singleTimeRange[0] = 0
+				singleTimeRange[1] = 0
 				timeRangeArr = append(timeRangeArr, singleTimeRange)
 			}
 
@@ -399,7 +541,7 @@ func ByteArrayToResponse(byteArray []byte) (*Response, []uint8, [][]int64, [][]s
 		Err:     "",
 	}
 
-	return &resp, flagArr, timeRangeArr, tagArr
+	return &resp, flagNum, flagArr, timeRangeArr, tagArr
 }
 
 // InterfaceToByteArray 把查询结果的 interface{} 类型转换为 []byte
@@ -644,6 +786,13 @@ func TimeStringToInt64(timestamp string) int64 {
 // int64 时间戳转换为 RFC3339 格式字符串	"2019-08-18T00:00:00Z"
 func TimeInt64ToString(number int64) string {
 	t := time.Unix(number, 0).UTC()
+	timestamp := t.Format(time.RFC3339)
+
+	return timestamp
+}
+
+func NanoTimeInt64ToString(number int64) string {
+	t := time.Unix(0, number).UTC()
 	timestamp := t.Format(time.RFC3339)
 
 	return timestamp

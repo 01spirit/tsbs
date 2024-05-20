@@ -17,11 +17,11 @@ func NewReadingsPosition(core utils.QueryGenerator) utils.QueryFiller {
 }
 
 // Fill fills in the query.Query with query details.
-func (i *ReadingsPosition) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+func (i *ReadingsPosition) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
 	fc, ok := i.core.(ReadingsPositionFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.ReadingsPosition(q, zipNum, latestNum)
+	fc.ReadingsPosition(q, zipNum, latestNum, newOrOld)
 	return q
 }

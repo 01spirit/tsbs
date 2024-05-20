@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -127,24 +126,28 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	// todo 在这里向客户端发送请求，是发送 HTTP 请求，还是调用接口，传入查询语句
 	//_, err = Workloads()
 
-	log.Println(string(q.RawQuery))
-	if client.UseCache {
+	//log.Println(string(q.RawQuery))
+	if client.UseCache == "stscache" {
 
 		_, byteLength, hitKind = client.IntegratedClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery), workerNum)
 
-	} else {
+	} else if client.UseCache == "fatcache" {
+
+		_, byteLength, hitKind = client.FatcacheClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery), workerNum)
+
+	} else { // database
 
 		qry := client.NewQuery(string(q.RawQuery), client.DB, "s")
-		resp, err := DBConn[workerNum%len(DBConn)].Query(qry)
-		//length, _, err := DBConn.QueryFromDatabase(qry)
+		//resp, err := DBConn[workerNum%len(DBConn)].Query(qry)
+		_, err := DBConn[workerNum%len(DBConn)].Query(qry)
 		if err != nil {
 			panic(err)
 		}
-		values := client.ResponseToByteArray(resp, string(q.RawQuery))
-		//client.TotalGetByteLength += uint64(len(values))
-		log.Println(len(values))
-		byteLength = uint64(len(values))
-		hitKind = 0
+		//values := client.ResponseToByteArray(resp, string(q.RawQuery))
+		////client.TotalGetByteLength += uint64(len(values))
+		//log.Println(len(values))
+		//byteLength = uint64(len(values))
+		//hitKind = 0
 		//log.Println(len(byteArr))
 
 		//populate a request with data from the Query:

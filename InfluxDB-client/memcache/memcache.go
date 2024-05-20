@@ -23,7 +23,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -732,7 +731,7 @@ func (c *Client) populateOne(rw *bufio.ReadWriter, verb string, item *Item) erro
 		return err
 	}
 	if _, err := rw.Write(item.Value); err != nil { //命令的第二行，表示具体的数据	如：zyx
-		log.Printf("len of value:%d\n", len(item.Value))
+		//log.Printf("send value length:%d\n", len(item.Value))
 		//log.Printf("write:%d\n", num)
 		return err
 	} else {

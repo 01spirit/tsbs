@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/timescale/tsbs/InfluxDB-client/models"
 	"log"
@@ -86,6 +87,17 @@ func Merge(precision string, resps ...*Response) []*Response {
 		} else if et2 <= st1 { // 2在1前面
 			if st1-et2 <= timeRange {
 				respTmp = MergeResultTable(resp2, resp1)
+				merged = true
+				results[index] = respTmp // 替换
+			}
+		} else {
+			// todo 插入到中间	谁被谁包含
+			if st1 < st2 && et1 > et2 { // 1 包含 2
+				respTmp = MergeContainedResultTable(resp1, resp2)
+				merged = true
+				results[index] = respTmp // 替换
+			} else if st1 > st2 && et1 < et2 { // 2 包含 1
+				respTmp = MergeContainedResultTable(resp2, resp1)
 				merged = true
 				results[index] = respTmp // 替换
 			}
@@ -381,4 +393,108 @@ func MergeResultTable(resp1, resp2 *Response) *Response {
 	resp1.Results[0].Series = respRow
 
 	return resp1
+}
+
+// MergeContainedResultTable 合并两个时间范围是包含关系的查询结果，把 2 合并到 1 中
+func MergeContainedResultTable(resp1, resp2 *Response) *Response {
+	respRow := make([]models.Row, 0)
+
+	/* 获取合并而且排序的表结构 */
+	mergedSeries := MergeSeries(resp1, resp2)
+
+	len1 := len(resp1.Results[0].Series)
+	len2 := len(resp2.Results[0].Series)
+
+	index1 := 0
+	index2 := 0
+
+	/* 对于没用 GROUP BY 的查询结果，直接把数据合并之后返回一张表 */
+	/* 根据表结构向表中添加数据 	数据以数组形式存储，直接添加到数组末尾即可*/
+	for _, ser := range mergedSeries {
+
+		// todo 寻找合适的插入位置
+		if index1 < len1 && strings.Compare(TagsMapToString(resp1.Results[0].Series[index1].Tags), TagsMapToString(ser.Tags)) == 0 && index2 < len2 && strings.Compare(TagsMapToString(resp2.Results[0].Series[index2].Tags), TagsMapToString(ser.Tags)) == 0 {
+			// 两张表对应，合并，2 插入到 1 中
+			insPos := SearchInsertPosition(resp1.Results[0].Series[index1].Values, resp2.Results[0].Series[index2].Values)
+
+			// 1 的前半部分
+			for i := 0; i < insPos; i++ {
+				ser.Values = append(ser.Values, resp1.Results[0].Series[index1].Values[i])
+			}
+			// 2 插入
+			for i := 0; i < len(resp2.Results[0].Series[index2].Values); i++ {
+				ser.Values = append(ser.Values, resp2.Results[0].Series[index2].Values[i])
+			}
+			// 1 的后半部分
+			for i := insPos; i < len(resp1.Results[0].Series[index1].Values); i++ {
+				ser.Values = append(ser.Values, resp1.Results[0].Series[index1].Values[i])
+			}
+
+			index1++
+			index2++
+		} else if index1 < len1 && strings.Compare(TagsMapToString(resp1.Results[0].Series[index1].Tags), TagsMapToString(ser.Tags)) == 0 {
+			// 第一个结果中独有的表
+			ser.Values = append(ser.Values, resp1.Results[0].Series[index1].Values...)
+			index1++
+		} else if index2 < len2 && strings.Compare(TagsMapToString(resp2.Results[0].Series[index2].Tags), TagsMapToString(ser.Tags)) == 0 {
+			// 第二个结果中独有的表
+			ser.Values = append(ser.Values, resp2.Results[0].Series[index2].Values...)
+			index2++
+		}
+
+		// 转换成能替换到结果中的结构
+		respRow = append(respRow, SeriesToRow(ser))
+	}
+
+	/* 合并结果替换到结果1中 */
+	resp1.Results[0].Series = respRow
+
+	return resp1
+}
+
+// SearchInsertPosition 找到 val2 应该插入到 val1 中的位置
+func SearchInsertPosition(values1, values2 [][]interface{}) int {
+	index := 0
+
+	// val2 的起始时间
+	if len(values2) == 0 || len(values1) == 0 {
+		return 0
+	}
+	timestamp, ok := values2[0][0].(json.Number)
+	if !ok {
+		log.Fatal(fmt.Errorf("search insert position fail during merge resp"))
+	}
+	st2, err := timestamp.Int64()
+	if err != nil {
+		log.Fatal(fmt.Errorf(err.Error()))
+	}
+
+	left := 0
+	right := len(values1) - 1
+	for left <= right {
+		mid := (left + right) / 2
+
+		tmstmp, ok := values1[mid][0].(json.Number)
+		if !ok {
+			log.Fatal(fmt.Errorf("search insert position fail during merge resp"))
+		}
+		st1, err := tmstmp.Int64()
+		if err != nil {
+			log.Fatal(fmt.Errorf(err.Error()))
+		}
+
+		if st1 < st2 {
+			index = mid
+			left = mid + 1
+		} else if st1 > st2 {
+			index = mid
+			right = mid - 1
+		} else {
+			index = mid
+			return index
+		}
+
+	}
+
+	return index
 }

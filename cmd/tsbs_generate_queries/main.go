@@ -4,8 +4,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/timescale/tsbs/pkg/data/usecases/common"
 	"github.com/timescale/tsbs/pkg/query/config"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/blagojts/viper"
@@ -98,6 +101,19 @@ func init() {
 	if err := viper.Unmarshal(&conf); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
+
+	ratioString := viper.GetString("ratio")
+	nums := strings.Split(ratioString, ":")
+	n1, err := strconv.Atoi(nums[0])
+	if err != nil {
+		panic(fmt.Errorf("unable to decode ratio string: %s", ratioString))
+	}
+	n2, err := strconv.Atoi(nums[1])
+	if err != nil {
+		panic(fmt.Errorf("unable to decode ratio string: %s", ratioString))
+	}
+	common.Ratio[0] = n1
+	common.Ratio[1] = n2
 }
 
 func main() {

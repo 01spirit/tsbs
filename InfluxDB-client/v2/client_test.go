@@ -1169,10 +1169,9 @@ func TestSplitResponseByTime(t *testing.T) {
 
 	//fmt.Println(resp.ToString())
 
-	splitResp, starts, ends := SplitResponseValuesByTime(queryString, resp, TimeSize)
-
-	for i, sr := range splitResp {
-		fmt.Println(len(sr[0]))
+	splitResp, _, starts, ends := SplitResponseValuesByTime(queryString, resp, TimeSize)
+	fmt.Println(len(splitResp))
+	for i := range splitResp {
 		fmt.Println(starts[i])
 		fmt.Println(ends[i])
 	}
@@ -1186,10 +1185,10 @@ func TestSetToFatCache(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 64; i++ {
 		wg.Add(1)
-		go SetToFatache(queryString, TimeSize)
+		go SetToFatcache(c, queryString, 0, TimeSize)
 	}
 	wg.Wait()
-	//SetToFatache(queryString, TimeSize)
+	//SetToFatcache(queryString, TimeSize)
 	//st, et := GetQueryTimeRange(queryString)
 	//ss := GetSemanticSegment(queryString)
 	//ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
@@ -1220,13 +1219,13 @@ func TestGetFromFatcache(t *testing.T) {
 	for scanner.Scan() {
 		//fmt.Println(scanner.Text())
 		queryString = scanner.Text()
-		SetToFatache(queryString, "11m")
+		SetToFatcache(c, queryString, 0, "11m")
 
 		st, et := GetQueryTimeRange(queryString)
 		ss := GetSemanticSegment(queryString)
 		ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
 		//items, err := fatcacheConn.Get(ss)
-		GetFromFatcache(queryString, "11m")
+		GetFromFatcache(queryString, 0, "11m")
 
 	}
 
@@ -1291,7 +1290,7 @@ func TestRepeatSetToStscache(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	fmt.Println(convertedResponse.ToString())
 }
 
@@ -1335,7 +1334,7 @@ func TestIntegratedClient(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1383,7 +1382,7 @@ func TestIntegratedClientIOT(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1436,7 +1435,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1485,7 +1484,7 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)
@@ -1551,7 +1550,7 @@ func TestIntegratedClientIOT2(t *testing.T) {
 	}
 
 	/* 把查询结果从字节流转换成 Response 结构 */
-	convertedResponse, _, _, _ := ByteArrayToResponse(values)
+	convertedResponse, _, _, _, _ := ByteArrayToResponse(values)
 	crst, cret := GetResponseTimeRange(convertedResponse)
 	//fmt.Println(convertedResponse.ToString())
 	fmt.Println(crst)

@@ -43,6 +43,7 @@ type BenchmarkRunnerConfig struct {
 	//
 	CacheURL string `mapstructure:"cache-url"`
 	UseCache string `mapstructure:"use-cache"`
+	TimeSize string `mapstructure:"fatcache-time-size"`
 }
 
 // High Dynamic Range (HDR) Histogram of Response Latencies 是一种用于记录和统计不同响应延迟时间的数据结构。
@@ -65,7 +66,8 @@ func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	fs.String("results-file", "", "Write the test results summary json to this file")
 	//
 	fs.String("cache-url", "http://localhost:11211", "STsCache url")
-	fs.String("use-cache", "true", "use STsCache ,otherwise use database")
+	fs.String("use-cache", "db", "use STsCache , fatcache ,otherwise use database")
+	fs.String("fatcache-time-size", "30m", "30m, 1h, 1.5h, 2h...")
 }
 
 // BenchmarkRunner contains the common components for running a query benchmarking
@@ -92,12 +94,23 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 	}
 	// todo cache启动参数
 	client.DB = config.DBName
-	client.STsCacheURL = config.CacheURL
-	STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
-	client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
-	if config.UseCache == "false" {
-		client.UseCache = false
+
+	client.UseCache = config.UseCache
+	if client.UseCache == "stscache" {
+		client.STsCacheURL = config.CacheURL
+		STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
+		client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
+	} else if client.UseCache == "fatcache" {
+		client.FatcacheURL = config.CacheURL
+		FatcacheURLArr := strings.Split(client.FatcacheURL, ",")
+		client.FatcacheConnArr = client.InitFatcacheConnsArr(FatcacheURLArr)
+
+		client.TimeSize = config.TimeSize
 	}
+
+	//fmt.Println(client.UseCache)
+	//fmt.Println(client.TimeSize)
+	//fmt.Println(len(client.FatcacheConnArr))
 
 	//log.Println(client.DB)
 	//log.Println(client.STsCacheURL)

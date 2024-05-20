@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// 新数据和旧数据的比例
+var Ratio []int = []int{8, 1}
+
 // Generator is a single entity which generates data from its respective measurements.
 type Generator interface {
 	Measurements() []SimulatedMeasurement

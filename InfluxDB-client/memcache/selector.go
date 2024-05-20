@@ -23,7 +23,7 @@ import (
 	"sync"
 )
 
-// ServerSelector is the interface that selects a memcache server		根据 item 的 key 选择 memcache server
+// ServerSelector is the interface that selects a fatcache server		根据 item 的 key 选择 fatcache server
 // as a function of the item's key.
 //
 // All ServerSelector implementations must be safe for concurrent use	必须支持并发

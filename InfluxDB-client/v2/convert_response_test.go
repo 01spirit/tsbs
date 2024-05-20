@@ -11,6 +11,99 @@ import (
 	"testing"
 )
 
+func TestEmptyResponseToByteArray(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:01Z' AND TIME <= '2018-01-01T00:00:05Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:02Z' AND TIME <= '2018-01-01T00:00:04Z' GROUP BY "name"`
+
+	urlString := "192.168.1.102:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	log.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	query := NewQuery(queryToBeSet, "iot_small", "s")
+	resp, _ := c.Query(query)
+
+	log.Println(resp.ToString())
+
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	startTime, endTime := GetQueryTimeRange(queryToBeSet)
+	seperateSemanticSegment := GetSeperateSemanticSegment(queryToBeSet)
+	emptyValues := make([]byte, 0)
+	for _, ss := range seperateSemanticSegment {
+		zero, _ := Int64ToByteArray(int64(0))
+		emptyValues = append(emptyValues, []byte(ss)...)
+		emptyValues = append(emptyValues, []byte(" ")...)
+		emptyValues = append(emptyValues, zero...)
+	}
+
+	numOfTab := int64(len(seperateSemanticSegment))
+	err := conns[0].Set(&stscache.Item{
+		Key:         semanticSegment,
+		Value:       emptyValues,
+		Time_start:  startTime,
+		Time_end:    endTime,
+		NumOfTables: int64(numOfTab),
+	})
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("SET.")
+		log.Printf("bytes set:%d\n", len(emptyValues))
+	}
+
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	values, _, err := conns[0].Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("GET.")
+		log.Printf("bytes get:%d\n", len(values))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	cr, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponse(values)
+	log.Printf("flag number:%d\n", flagNum)
+	log.Printf("flag arr length:%d\n", len(flagArr))
+	log.Printf("time range arr length:%d\n", len(timeRangeArr))
+	log.Printf("tag arr length:%d\n", len(tagArr))
+
+	log.Println(cr.ToString())
+
+	//for i := 0; i < len(flagArr); i++ {
+	//	fmt.Printf("number:%d:\tflag:%d\ttime range:%d-%d\ttag:%s:%s\n", i, flagArr[i], timeRangeArr[i][0], timeRangeArr[i][1], tagArr[i][0], tagArr[i][1])
+	//}
+
+	if flagNum > 0 {
+		remainQueryString, minTime, maxTime := RemainQueryString(queryToBeSet, flagArr, timeRangeArr, tagArr)
+		fmt.Printf("remain query string:\n%s\n", remainQueryString)
+		fmt.Printf("remain min time:\n%d\t%s\n", minTime, TimeInt64ToString(minTime))
+		fmt.Printf("remain max time:\n%d\t%s\n", maxTime, TimeInt64ToString(maxTime))
+
+		remainQuery := NewQuery(remainQueryString, "iot", "s")
+		remainResp, _ := c.Query(remainQuery)
+		remainByteArr := ResponseToByteArray(remainResp, queryToBeGet)
+		numOfTableR := len(remainResp.Results[0].Series)
+		err = conns[0].Set(&stscache.Item{
+			Key:         semanticSegment,
+			Value:       remainByteArr,
+			Time_start:  minTime,
+			Time_end:    maxTime,
+			NumOfTables: int64(numOfTableR),
+		})
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println("SET.")
+			log.Printf("bytes set:%d\n", len(emptyValues))
+		}
+	}
+
+}
+
 func TestResponse_ToByteArray(t *testing.T) {
 	// 连接数据库
 	var c, _ = NewHTTPClient(HTTPConfig{
@@ -79,6 +172,116 @@ func TestResponse_ToByteArray(t *testing.T) {
 	// {(h2o_quality.randtag=3)}#{time[int64],index[int64]}#{(location='coyote_creek'[string])}#{empty,empty} [0 0 0 0 0 0 0 32]
 	// 2019-08-18T00:00:00Z 85
 	// 2019-08-18T00:30:00Z 75
+}
+
+func TestDetailQuery(t *testing.T) {
+	queryToBeSet := `SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE ("name" = 'truck_0' or "name" = 'truck_1' or "name" = 'truck_2' or "name" = 'truck_3' or "name" = 'truck_4' or "name" = 'truck_5' or "name" = 'truck_6' or "name" = 'truck_7' or "name" = 'truck_8' or "name" = 'truck_9' or "name" = 'truck_10' or "name" = 'truck_11' or "name" = 'truck_12' or "name" = 'truck_13' or "name" = 'truck_14' or "name" = 'truck_15' or "name" = 'truck_16' or "name" = 'truck_17' or "name" = 'truck_18' or "name" = 'truck_19' or "name" = 'truck_20' or "name" = 'truck_21' or "name" = 'truck_22' or "name" = 'truck_23' or "name" = 'truck_24' or "name" = 'truck_25' or "name" = 'truck_26' or "name" = 'truck_27' or "name" = 'truck_28' or "name" = 'truck_29') AND TIME >= '2022-12-17T12:00:00Z' AND TIME <= '2022-12-19T00:00:00Z' GROUP BY "name", time(10m)`
+	urlString := "192.168.1.102:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	log.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	query := NewQuery(queryToBeSet, "iot_small", "s")
+	resp, _ := c.Query(query)
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	st, et := GetQueryTimeRange(queryToBeSet)
+	numOfTable := len(resp.Results[0].Series)
+	val := ResponseToByteArray(resp, queryToBeSet)
+	err := conns[0].Set(&stscache.Item{
+		Key:         semanticSegment,
+		Value:       val,
+		Time_start:  st,
+		Time_end:    et,
+		NumOfTables: int64(numOfTable),
+	})
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("SET.")
+		log.Printf("bytes set:%d\n", len(val))
+	}
+}
+
+func TestRemainQueryString(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' AND  TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:10:00Z'`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE  "name"='truck_0' AND TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:30:00Z'`
+
+	urlString := "192.168.1.102:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	log.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	query := NewQuery(queryToBeSet, "iot_small", "s")
+	resp, _ := c.Query(query)
+	semanticSegment := GetSemanticSegment(queryToBeSet)
+	st, et := GetQueryTimeRange(queryToBeSet)
+	numOfTable := len(resp.Results[0].Series)
+	val := ResponseToByteArray(resp, queryToBeSet)
+	err := conns[0].Set(&stscache.Item{
+		Key:         semanticSegment,
+		Value:       val,
+		Time_start:  st,
+		Time_end:    et,
+		NumOfTables: int64(numOfTable),
+	})
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("SET.")
+		log.Printf("bytes set:%d\n", len(val))
+	}
+
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	values, _, err := conns[0].Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		log.Printf("GET.")
+		log.Printf("bytes get:%d\n", len(values))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	_, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponse(values)
+	log.Printf("flag number:%d\n", flagNum)
+	log.Printf("flag arr length:%d\n", len(flagArr))
+	log.Printf("time range arr length:%d\n", len(timeRangeArr))
+	log.Printf("tag arr length:%d\n", len(tagArr))
+
+	//for i := 0; i < len(flagArr); i++ {
+	//	fmt.Printf("number:%d:\tflag:%d\ttime range:%d-%d\ttag:%s:%s\n", i, flagArr[i], timeRangeArr[i][0], timeRangeArr[i][1], tagArr[i][0], tagArr[i][1])
+	//}
+
+	if flagNum > 0 {
+		remainQueryString, minTime, maxTime := RemainQueryString(queryToBeSet, flagArr, timeRangeArr, tagArr)
+		fmt.Printf("remain query string:\n%s\n", remainQueryString)
+		fmt.Printf("remain min time:\n%d\t%s\n", minTime, TimeInt64ToString(minTime))
+		fmt.Printf("remain max time:\n%d\t%s\n", maxTime, TimeInt64ToString(maxTime))
+
+		remainQuery := NewQuery(remainQueryString, "iot", "s")
+		remainResp, _ := c.Query(remainQuery)
+		remainByteArr := ResponseToByteArray(remainResp, queryToBeGet)
+		numOfTableR := len(remainResp.Results[0].Series)
+		err = conns[0].Set(&stscache.Item{
+			Key:         semanticSegment,
+			Value:       remainByteArr,
+			Time_start:  minTime,
+			Time_end:    maxTime,
+			NumOfTables: int64(numOfTableR),
+		})
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println("SET.")
+			log.Printf("bytes set:%d\n", len(val))
+		}
+	}
+
 }
 
 func TestByteArrayToResponse(t *testing.T) {
@@ -181,7 +384,7 @@ func TestByteArrayToResponse(t *testing.T) {
 			fmt.Println("Get successfully")
 
 			/* 字节数组转换为结果类型 */
-			respConverted, _, _, _ := ByteArrayToResponse(valueBytes)
+			respConverted, _, _, _, _ := ByteArrayToResponse(valueBytes)
 			fmt.Println("Convert successfully")
 
 			if strings.Compare(respString, respConverted.ToString()) != 0 {
@@ -267,7 +470,7 @@ func TestIoT(t *testing.T) {
 			fmt.Println(respString)
 			respBytes := ResponseToByteArray(resp, tt.queryString)
 
-			respConvert, _, _, _ := ByteArrayToResponse(respBytes)
+			respConvert, _, _, _, _ := ByteArrayToResponse(respBytes)
 			respConvertString := respConvert.ToString()
 			fmt.Println(respConvertString)
 			fmt.Println(respBytes)
@@ -553,10 +756,15 @@ func TestTimeStringToInt64(t *testing.T) {
 func TestTimeInt64ToString(t *testing.T) {
 	timeIntegers := []int64{1566086400, 946684800, 9183110400, 1640709000, -1,
 		1640795430, 1640987960, 1640795400, 1640795390, 1640995110,
-		1640763130, 1640788160, 1640534400, 1640707200}
+		1640763130, 1640788160, 1640534400, 1640707200,
+		1514764800, 1671192000,
+		1671278400, 1671408000}
 	expected := []string{"2019-08-18T00:00:00Z", "2000-01-01T00:00:00Z", "2261-01-01T00:00:00Z", "2021-12-28T16:30:00Z", "1969-12-31T23:59:59Z",
 		"2021-12-29T16:30:30Z", "2021-12-31T21:59:20Z", "2021-12-29T16:30:00Z",
-		"2021-12-29T16:29:50Z", "2021-12-31T23:58:30Z", "2021-12-29T07:32:10Z", "2021-12-29T14:29:20Z", "2021-12-26T16:00:00Z", "2021-12-28T16:00:00Z"}
+		"2021-12-29T16:29:50Z", "2021-12-31T23:58:30Z", "2021-12-29T07:32:10Z", "2021-12-29T14:29:20Z", "2021-12-26T16:00:00Z", "2021-12-28T16:00:00Z",
+		"2018-01-01T00:00:00Z", "2022-12-16T12:00:00Z",
+		"2022-12-17T12:00:00Z", "2022-12-19T00:00:00Z",
+	}
 	for i := range timeIntegers {
 		numberStr := TimeInt64ToString(timeIntegers[i])
 		if numberStr != expected[i] {

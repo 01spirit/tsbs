@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"math/rand"
 	"time"
 )
@@ -13,14 +14,15 @@ const (
 
 	errWindowTooLargeFmt = "random window equal to or larger than TimeInterval: window %v, interval %v"
 
-	hour  = time.Hour
-	day   = 24 * time.Hour
-	week  = 7 * day
-	month = 4 * week
+	minute = time.Minute
+	hour   = time.Hour
+	day    = 24 * time.Hour
+	week   = 7 * day
+	month  = 4*week + 2*day
 )
 
 var ZipFianTimeDuration = []time.Duration{
-	1 * hour / 100, 2 * hour / 100, 3 * hour / 100, 6 * hour / 100, 12 * hour / 100, 16 * hour / 100, day / 100, 2 * day / 100, 3 * day / 100, 4 * day / 100,
+	6 * hour, 12 * hour, 1 * day, 2 * day, 3 * day, 5 * day, 1 * week, 2 * week, 3 * week, 1 * month,
 }
 
 //var ZipFianTimeDuration = []time.Duration{
@@ -123,7 +125,7 @@ func (ti *TimeInterval) DistributionRand(zipNum int64, latestNum int64) *TimeInt
 	totalEndTime := ti.end.UnixNano() - 1
 	//fmt.Println(ti.end)
 
-	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() / 2) * (10 - latestNum - 1)) // Latest分布生成结束时间	默认从整体结束时间开始向前划分一千个时间区间，每个半小时
+	queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 24) * (5*365 - latestNum - 1)) // Latest分布生成结束时间
 	queryStartTime := queryEndTime - duration
 
 	if queryStartTime < totalStartTime {
@@ -142,6 +144,70 @@ func (ti *TimeInterval) DistributionRand(zipNum int64, latestNum int64) *TimeInt
 	}
 
 	return x
+}
+
+func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int64, newOrOld int) *TimeInterval {
+	duration := ZipFianTimeDuration[zipNum].Nanoseconds() // Zipfian分布生成时间区间
+	// 启动项参数中设置的整体查询的 起始时间 和 结束时间
+
+	if newOrOld == 0 {
+		totalStartTime := ti.start.UnixNano()
+		totalEndTime := ti.end.UnixNano() - 1
+		//fmt.Println(ti.end)
+		//fmt.Printf("start time:\t%d\tend time:\t%d\n", totalStartTime, totalEndTime)
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
+
+		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 24) * (5*365 - latestNum - 1)) // Latest分布生成结束时间
+		queryStartTime := queryEndTime - duration
+
+		if queryStartTime < totalStartTime {
+			queryStartTime = totalStartTime
+		}
+
+		if queryEndTime <= queryStartTime {
+			queryEndTime = totalEndTime
+			queryStartTime = queryEndTime - 24*time.Hour.Nanoseconds()
+			//queryEndTime = queryStartTime + 24*time.Hour.Nanoseconds()
+		}
+
+		x, err := NewTimeInterval(time.Unix(0, queryStartTime), time.Unix(0, queryEndTime))
+		if err != nil {
+			panic(err.Error())
+		}
+
+		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
+		return x
+	} else {
+		totalStartTime := ti.start.UnixNano() + time.Hour.Nanoseconds()*24*365*3
+		totalEndTime := totalStartTime + time.Hour.Nanoseconds()*24*365
+		//fmt.Println(ti.end)
+		//fmt.Printf("start time:\t%d\tend time:\t%d\n", ti.start.UnixNano(), ti.end.UnixNano())
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
+
+		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 24) * (1*365 - latestNum - 1)) // Latest分布生成结束时间
+		queryStartTime := queryEndTime - duration
+
+		if queryStartTime < totalStartTime {
+			queryStartTime = totalStartTime
+		}
+
+		if queryEndTime <= queryStartTime {
+			queryEndTime = totalEndTime
+			queryStartTime = queryEndTime - 24*time.Hour.Nanoseconds()
+			//queryEndTime = queryStartTime + 24*time.Hour.Nanoseconds()
+		}
+
+		x, err := NewTimeInterval(time.Unix(0, queryStartTime), time.Unix(0, queryEndTime))
+		if err != nil {
+			panic(err.Error())
+		}
+
+		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
+		return x
+	}
+
 }
 
 // Start returns the starting time in UTC.

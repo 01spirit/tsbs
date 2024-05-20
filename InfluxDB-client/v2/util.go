@@ -26,7 +26,7 @@ func GetNumOfTable(resp *Response) int64 {
 
 var mu4 sync.Mutex
 
-// GetResponseTimeRange 获取查询结果的时间范围
+// GetResponseTimeRange 获取查询结果的时间范围；所有表的最大时间和最小时间
 // 从 response 中取数据，可以确保起止时间都有，只需要进行类型转换
 func GetResponseTimeRange(resp *Response) (int64, int64) {
 	mu4.Lock()
@@ -69,7 +69,7 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 
 		}
 
-		/* 更新起止时间范围 	两个时间可能不在一个表中 ? */
+		/* 更新起止时间范围 	两个时间可能不在一个表中  */
 		if minStartTime > ist {
 			minStartTime = ist
 		}

@@ -27,7 +27,7 @@ func NewMaxAllCPU(hosts int, duration time.Duration) utils.QueryFillerMaker {
 }
 
 // Fill fills in the query.Query with query details
-func (d *MaxAllCPU) Fill(q query.Query, zipNum int64, latestNum int64) query.Query {
+func (d *MaxAllCPU) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
 	fc, ok := d.core.(MaxAllFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(d.core)
