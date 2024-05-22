@@ -23,6 +23,6 @@ func (i *ReadingsAvgFuelConsumption) Fill(q query.Query, zipNum int64, latestNum
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.ReadingsAvgFuelConsumption(q, zipNum, latestNum)
+	fc.ReadingsAvgFuelConsumption(q, zipNum, latestNum, newOrOld)
 	return q
 }

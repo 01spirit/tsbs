@@ -8,7 +8,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 )
@@ -444,14 +443,13 @@ func SeperateSM(integratedSM string) []string {
 	return sepSM
 }
 
-var mu5 sync.Mutex
+//var mu5 sync.Mutex
 
 // GetSeperateSemanticSegment 获取每张子表的 SM
 func GetSeperateSemanticSegment(queryString string) []string {
 	results := make([]string, 0)
 
-	mu5.Lock()
-	defer mu5.Unlock()
+	//mu5.Lock()
 	queryTemplate := GetQueryTemplate(queryString)
 	semanticSegment := ""
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
@@ -470,7 +468,7 @@ func GetSeperateSemanticSegment(queryString string) []string {
 		}
 
 		SeprateSegments[semanticSegment] = results
-
+		//mu5.Unlock()
 		return results
 	} else {
 		semanticSegment = ss
@@ -488,9 +486,10 @@ func GetSeperateSemanticSegment(queryString string) []string {
 			}
 
 			SeprateSegments[semanticSegment] = results
-
+			//mu5.Unlock()
 			return results
 		} else {
+			//mu5.Unlock()
 			return sepseg
 		}
 
@@ -532,4 +531,20 @@ func GetSemanticSegment(queryString string) string {
 	result = fmt.Sprintf("%s#{%s}#%s#{%s,%s}", SM, fields, SP, aggr, interval)
 
 	return result
+}
+
+// GetSemanticSegment 重构根据查询语句生成语义段的功能
+func GetSemanticSegmentAndFields(queryString string) (string, string) {
+	result := ""
+
+	measurement := MeasurementName(queryString)
+	SP, tagConds := PredicatesAndTagConditions(queryString, measurement, TagKV)
+	fields, aggr := FieldsAndAggregation(queryString, measurement)
+	tags := GroupByTags(queryString, measurement)
+	interval := GetInterval(queryString)
+	SM := IntegratedSM(measurement, tagConds, tags)
+
+	result = fmt.Sprintf("%s#{%s}#%s#{%s,%s}", SM, fields, SP, aggr, interval)
+
+	return result, fields
 }

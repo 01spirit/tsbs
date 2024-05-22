@@ -62,6 +62,8 @@ const (
 	LableReadingsVelocity           = "readings_velocity"
 	LableReadingsAvgFuelConsumption = "readings_avg_fuel_consumption"
 	LableReadingsMaxVelocity        = "readings_max_velocity"
+	//
+	LabelMultiQueries = "multi_queries"
 )
 
 // Core is the common component of all generators for all systems.
@@ -199,7 +201,7 @@ type SimpleIoTFiller interface {
 }
 
 type DiagnosticsLoadFiller interface {
-	DiagnosticsLoad(query.Query, int, int64, int64)
+	DiagnosticsLoad(query.Query, int64, int64, int)
 }
 
 type DiagnosticsFuelFiller interface {
@@ -214,14 +216,18 @@ type ReadingsFuelFiller interface {
 	ReadingsFuel(query.Query, int64, int64)
 }
 
-type ReadingsVelocityFiller interface {
-	ReadingsVelocity(query.Query, int64, int64)
+type ReadingsVelocityAndFuelFiller interface {
+	ReadingsVelocityAndFuel(query.Query, int64, int64, int)
 }
 
 type ReadingsAvgFuelConsumptionFiller interface {
-	ReadingsAvgFuelConsumption(query.Query, int64, int64)
+	ReadingsAvgFuelConsumption(query.Query, int64, int64, int)
 }
 
 type ReadingsMaxVelocityFiller interface {
 	ReadingsMaxVelocity(query.Query, int64, int64)
+}
+
+type MultiQueriesFiller interface {
+	MultiQueries(query.Query, int64, int64, int)
 }

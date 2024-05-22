@@ -19,10 +19,10 @@ func NewReadingsVelocity(core utils.QueryGenerator) utils.QueryFiller {
 
 // Fill fills in the query.Query with query details.
 func (i *ReadingsVelocity) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
-	fc, ok := i.core.(ReadingsVelocityFiller)
+	fc, ok := i.core.(ReadingsVelocityAndFuelFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.ReadingsVelocity(q, zipNum, latestNum)
+	fc.ReadingsVelocityAndFuel(q, zipNum, latestNum, newOrOld)
 	return q
 }

@@ -6,22 +6,22 @@ import (
 	"github.com/timescale/tsbs/pkg/query"
 )
 
-type DiagnosticsLoad struct {
+type MultiQueries struct {
 	core utils.QueryGenerator
 }
 
-func NewDiagnosticsLoad(core utils.QueryGenerator) utils.QueryFiller {
-	return &DiagnosticsLoad{
+func NewMultiQueries(core utils.QueryGenerator) utils.QueryFiller {
+	return &MultiQueries{
 		core: core,
 	}
 }
 
 // Fill fills in the query.Query with query details.
-func (i *DiagnosticsLoad) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
-	fc, ok := i.core.(DiagnosticsLoadFiller)
+func (i *MultiQueries) Fill(q query.Query, zipNum int64, latestNum int64, newOrOld int) query.Query {
+	fc, ok := i.core.(MultiQueriesFiller)
 	if !ok {
 		common.PanicUnimplementedQuery(i.core)
 	}
-	fc.DiagnosticsLoad(q, zipNum, latestNum, newOrOld)
+	fc.MultiQueries(q, zipNum, latestNum, newOrOld)
 	return q
 }

@@ -64,8 +64,8 @@ var (
 
 const (
 	// DefaultTimeout is the default socket read/write timeout.		默认超时时间
-	//DefaultTimeout = 500 * time.Millisecond
-	DefaultTimeout = 100 * 100 * 100 * 1000 * time.Millisecond
+	DefaultTimeout = 200 * time.Millisecond
+	//DefaultTimeout = 100 * 100 * 100 * 1000 * time.Millisecond
 	//DefaultTimeout = 0 * time.Millisecond
 
 	// DefaultMaxIdleConns is the default maximum number of idle connections	默认最多有两个闲置的连接

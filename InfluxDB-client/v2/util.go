@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -24,12 +23,12 @@ func GetNumOfTable(resp *Response) int64 {
 	return int64(len(resp.Results[0].Series))
 }
 
-var mu4 sync.Mutex
+//var mu4 sync.Mutex
 
 // GetResponseTimeRange 获取查询结果的时间范围；所有表的最大时间和最小时间
 // 从 response 中取数据，可以确保起止时间都有，只需要进行类型转换
 func GetResponseTimeRange(resp *Response) (int64, int64) {
-	mu4.Lock()
+	//	mu4.Lock()
 	var minStartTime int64
 	var maxEndTime int64
 	var ist int64
@@ -77,7 +76,7 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 			maxEndTime = iet
 		}
 	}
-	mu4.Unlock()
+	//mu4.Unlock()
 	return minStartTime, maxEndTime
 }
 
