@@ -116,6 +116,119 @@ func Merge(precision string, resps ...*Response) []*Response {
 	return results
 }
 
+func MergeRes(resp1, resp2 *Response) *Response {
+	//var respTmp *Response
+	//respTmp.Results[0].Series = make([]models.Row, 0)
+
+	if ResponseIsEmpty(resp1) {
+		return resp2
+	}
+	if ResponseIsEmpty(resp2) {
+		return resp1
+	}
+
+	seriesArr := make([]models.Row, 0)
+	/* 合并 		经过排序处理后必定有两个以上的结果需要合并 */
+	index1 := 0 // results 数组索引，指向最后一个元素
+	index2 := 0
+	for index1 < len(resp1.Results[0].Series) && index2 < len(resp2.Results[0].Series) {
+
+		tag1 := TagsMapToString(resp1.Results[0].Series[index1].Tags)
+		tag2 := TagsMapToString(resp2.Results[0].Series[index2].Tags)
+
+		cmp := strings.Compare(tag1, tag2)
+		if cmp == -1 {
+			seriesArr = append(seriesArr, resp1.Results[0].Series[index1])
+			//respTmp.Results[0].Series = append(respTmp.Results[0].Series, resp1.Results[0].Series[index1])
+			index1++
+		} else if cmp == 1 {
+			seriesArr = append(seriesArr, resp2.Results[0].Series[index2])
+			//respTmp.Results[0].Series = append(respTmp.Results[0].Series, resp2.Results[0].Series[index2])
+			index2++
+		} else {
+			seriesArr = append(seriesArr, mergeSeries(resp1.Results[0].Series[index1], resp2.Results[0].Series[index2]))
+			//respTmp.Results[0].Series = append(respTmp.Results[0].Series, mergeSeries(resp1.Results[0].Series[index1], resp2.Results[0].Series[index2]))
+			index1++
+			index2++
+		}
+	}
+
+	for index1 < len(resp1.Results[0].Series) {
+		seriesArr = append(seriesArr, resp1.Results[0].Series[index1])
+		//respTmp.Results[0].Series = append(respTmp.Results[0].Series, resp2.Results[0].Series[index2])
+		index1++
+	}
+
+	for index2 < len(resp2.Results[0].Series) {
+		seriesArr = append(seriesArr, resp2.Results[0].Series[index2])
+		//respTmp.Results[0].Series = append(respTmp.Results[0].Series, resp2.Results[0].Series[index2])
+		index2++
+	}
+
+	resp1.Results[0].Series = seriesArr
+
+	return resp1
+}
+
+func mergeSeries(series1, series2 models.Row) models.Row {
+	st1, et1 := GetSeriesTimeRange(series1)
+	st2, et2 := GetSeriesTimeRange(series2)
+
+	if st2 > et1 {
+		//ser.Values = append(ser.Values, resp1.Results[0].Series[index1].Values...)
+		series1.Values = append(series1.Values, series2.Values...)
+		return series1
+	} else if st1 > et2 {
+		series2.Values = append(series2.Values, series1.Values...)
+		return series2
+	} else if st1 < st2 {
+		tmpSeries := models.Row{
+			Name:    series1.Name,
+			Tags:    series1.Tags,
+			Columns: series1.Columns,
+			Values:  make([][]interface{}, 0),
+			Partial: false,
+		}
+		insPos := SearchInsertPosition(series1.Values, series2.Values)
+		// 1 的前半部分
+		for i := 0; i < insPos; i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series1.Values[i])
+		}
+		// 2 插入
+		for i := 0; i < len(series2.Values); i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series2.Values[i])
+		}
+		// 1 的后半部分
+		for i := insPos; i < len(series1.Values); i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series1.Values[i])
+		}
+		return tmpSeries
+	} else {
+		tmpSeries := models.Row{
+			Name:    series1.Name,
+			Tags:    series1.Tags,
+			Columns: series1.Columns,
+			Values:  make([][]interface{}, 0),
+			Partial: false,
+		}
+		insPos := SearchInsertPosition(series2.Values, series1.Values)
+		// 1 的前半部分
+		for i := 0; i < insPos; i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series2.Values[i])
+		}
+		// 2 插入
+		for i := 0; i < len(series1.Values); i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series1.Values[i])
+		}
+		// 1 的后半部分
+		for i := insPos; i < len(series2.Values); i++ {
+			tmpSeries.Values = append(tmpSeries.Values, series2.Values[i])
+		}
+		return tmpSeries
+	}
+
+}
+
 // SortResponses 传入一组查询结果，构造成用于排序的结构体，对不为空的结果按时间升序进行排序，返回结果数组
 func SortResponses(resps []*Response) []*Response {
 	var results []*Response

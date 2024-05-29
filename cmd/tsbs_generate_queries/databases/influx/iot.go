@@ -356,11 +356,11 @@ func (i *IoT) ReadingsPosition(qi query.Query, zipNum int64, latestNum int64, ne
 	var influxql string
 	if zipNum < 5 {
 		influxql = fmt.Sprintf(
-			`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(10m)`,
+			`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(1m)`,
 			i.getContinuousTruckWhereString(), interval.StartString(), interval.EndString())
 	} else {
 		influxql = fmt.Sprintf(
-			`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(1h)`,
+			`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "name",time(10m)`,
 			i.getContinuousTruckWhereString(), interval.StartString(), interval.EndString())
 	}
 	humanLabel := "Influx ReadingsPosition IoT queries"

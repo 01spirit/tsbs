@@ -353,6 +353,10 @@ func TestMergeContainedResultTable(t *testing.T) {
 	queryString2 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_0' or \"name\" = 'truck_1' or \"name\" = 'truck_2' or \"name\" = 'truck_4' AND TIME >= '2018-01-01T00:00:20Z' AND TIME <= '2018-01-01T00:00:30Z' GROUP BY \"name\""
 	queryString3 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_1' or \"name\" = 'truck_2' or \"name\" = 'truck_3' or \"name\" = 'truck_4' or \"name\" = 'truck_5' AND TIME >= '2018-01-01T00:00:40Z' AND TIME <= '2018-01-01T00:00:50Z' GROUP BY \"name\""
 
+	//queryString1 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_1' AND TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:00:10Z' GROUP BY \"name\""
+	//queryString2 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_1' AND TIME >= '2018-01-01T00:00:20Z' AND TIME <= '2018-01-01T00:00:30Z' GROUP BY \"name\""
+	//queryString3 := "SELECT current_load,load_capacity FROM \"diagnostics\" WHERE \"name\" = 'truck_1' AND TIME >= '2018-01-01T00:00:40Z' AND TIME <= '2018-01-01T00:00:50Z' GROUP BY \"name\""
+
 	urlString := "192.168.1.102:11211"
 	urlArr := strings.Split(urlString, ",")
 	conns := InitStsConnsArr(urlArr)
@@ -373,15 +377,17 @@ func TestMergeContainedResultTable(t *testing.T) {
 	fmt.Printf("resp 3 :\n")
 	fmt.Println(resp3.ToString())
 
-	bigResp := Merge("1h", resp1, resp3)
-	fmt.Printf("big resp length : %d\n", len(bigResp))
+	//bigResp := Merge("1h", resp1, resp3)
+	bigResp := MergeRes(resp1, resp3)
 	fmt.Printf("big resp :\n")
-	fmt.Println(bigResp[0].ToString())
+	fmt.Println(bigResp.ToString())
 
 	//containedResp := MergeContainedResultTable(bigResp[0], resp2)
-	containedResp := Merge("1h", bigResp[0], resp2)
+	//containedResp := Merge("1h", bigResp[0], resp2)
+	containedResp := MergeRes(bigResp, resp2)
+	//containedResp := Merge("1h", resp1, resp2)
 	fmt.Printf("contained Resp :\n")
-	fmt.Println(containedResp[0].ToString())
+	fmt.Println(containedResp.ToString())
 }
 
 func TestMergeResultTable(t *testing.T) {

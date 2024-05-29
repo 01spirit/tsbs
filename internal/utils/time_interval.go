@@ -157,9 +157,9 @@ func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int6
 		//fmt.Printf("start time:\t%d\tend time:\t%d\n", totalStartTime, totalEndTime)
 		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
 
-		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 24) * (5*365 - latestNum - 1)) // Latest分布生成结束时间
+		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 12) * (365*2 - latestNum - 1)) // Latest分布生成结束时间
 		queryStartTime := queryEndTime - duration
-
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(queryStartTime), client.NanoTimeInt64ToString(queryEndTime))
 		if queryStartTime < totalStartTime {
 			queryStartTime = totalStartTime
 		}
@@ -179,15 +179,14 @@ func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int6
 		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
 		return x
 	} else {
-		totalStartTime := ti.start.UnixNano() + time.Hour.Nanoseconds()*24*365*3
-		totalEndTime := totalStartTime + time.Hour.Nanoseconds()*24*365
+		totalStartTime := ti.start.UnixNano()
+		totalEndTime := totalStartTime + time.Hour.Nanoseconds()*24*90
 		//fmt.Println(ti.end)
 		//fmt.Printf("start time:\t%d\tend time:\t%d\n", ti.start.UnixNano(), ti.end.UnixNano())
 		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
-
-		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 24) * (1*365 - latestNum - 1)) // Latest分布生成结束时间
+		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 12) * (90*2 - latestNum - 1)) // Latest分布生成结束时间
 		queryStartTime := queryEndTime - duration
-
+		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(queryStartTime), client.NanoTimeInt64ToString(queryEndTime))
 		if queryStartTime < totalStartTime {
 			queryStartTime = totalStartTime
 		}

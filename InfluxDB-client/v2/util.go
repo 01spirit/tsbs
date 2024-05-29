@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/influxdata/influxql"
+	"github.com/timescale/tsbs/InfluxDB-client/models"
 	"log"
 	"math"
 	"regexp"
@@ -78,6 +79,22 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 	}
 	//mu4.Unlock()
 	return minStartTime, maxEndTime
+}
+
+func GetSeriesTimeRange(series models.Row) (int64, int64) {
+	var stime int64
+	var etime int64
+
+	start := series.Values[0][0]                  // 第一条记录的时间		第一个查询结果
+	end := series.Values[len(series.Values)-1][0] // 最后一条记录的时间
+
+	st := start.(json.Number)
+	et := end.(json.Number)
+
+	stime, _ = st.Int64()
+	etime, _ = et.Int64()
+
+	return stime, etime
 }
 
 // GetQueryTimeRange 获取一条查询语句的时间范围	单位为秒 "s"

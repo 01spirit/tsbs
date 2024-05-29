@@ -942,39 +942,7 @@ func (r *ChunkedResponse) Close() error {
 	return r.duplex.Close()
 }
 
-//func Set(queryString string, c Client, mc *fatcache.Client) error {
-//	query := NewQuery(queryString, DB, "ns")
-//	resp, err := c.Query(query)
-//	if err != nil {
-//		return err
-//	}
-//
-//	semanticSegment := SemanticSegment(queryString, resp)
-//	startTime, endTime := GetResponseTimeRange(resp)
-//	respCacheByte := resp.ToByteArray(queryString)
-//	tableNumbers := int64(len(resp.Results[0].Series))
-//
-//	item := fatcache.Item{
-//		Key:         semanticSegment,
-//		Value:       respCacheByte,
-//		Flags:       0,
-//		Expiration:  0,
-//		CasID:       0,
-//		Time_start:  startTime,
-//		Time_end:    endTime,
-//		NumOfTables: tableNumbers,
-//	}
-//
-//	err = mc.Set(&item)
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
-
-/* TSCache */
+// TSCacheByteToValue TSCache
 // 把字节流转换成查询结果
 func TSCacheByteToValue(byteArray []byte) *Response {
 	/* 没有数据 */
@@ -1188,7 +1156,7 @@ func TSCacheByteToValue(byteArray []byte) *Response {
 	return &resp
 }
 
-/* 用于 TSCache， 按列存储的形式 */
+// TSCacheValueToByte 用于 TSCache， 按列存储的形式
 // 把查询结果转换成字节流
 func TSCacheValueToByte(resp *Response) []byte {
 	result := make([]byte, 0)
@@ -1224,7 +1192,7 @@ func TSCacheValueToByte(resp *Response) []byte {
 	return result
 }
 
-// 获取把查询结果转换成字节流所需的数据，包括 列名、每列数据的总长度、每列的具体数据
+// TSCacheParameter 获取把查询结果转换成字节流所需的数据，包括 列名、每列数据的总长度、每列的具体数据
 func TSCacheParameter(resp *Response) ([][]string, [][]int64, [][][]byte) {
 	var tag_value []string     // 每张子表的所有 tag 的值连接成字符串
 	var tag_field [][]string   // 每张子表的多个列，每个列的列名和 tag 连接成字符串
@@ -1280,6 +1248,7 @@ func TSCacheParameter(resp *Response) ([][]string, [][]int64, [][][]byte) {
 	return tag_field, field_len, field_value
 }
 
+// EmptyRespStruct Fatcache 空结构体
 func EmptyRespStruct(resp *Response, num int) []Response {
 	result := make([]Response, num)
 	tmpRows := make([]models.Row, 0)
@@ -1698,6 +1667,9 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 	//CacheIndex := truckNumber / (100 / CacheNum)
 
 	CacheIndex := GetCacheHashValue(fields)
+	fields = "time[int64]," + fields
+	datatype := GetDataTypeArrayFromSF(fields)
+	//	splitField := strings.Split(fields, ",")
 
 	//fmt.Printf("cache index:\t%d\n", CacheIndex)
 
@@ -1711,7 +1683,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 	values, _, err := STsConnArr[CacheIndex].Get(semanticSegment, startTime, endTime)
 	byteLength += uint64(len(values))
 	if err != nil { // 缓存未命中
-		log.Printf("Get fail: %v\n", err)
+		//log.Printf("Get fail: %v\n", err)
 
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
@@ -1737,12 +1709,12 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 			/* 存入 cache */
 			//err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			//err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			log.Printf("get miss Set : \tvalue length:%d\tthread:%d\n", len(remainValues), workerNum)
+			//log.Printf("get miss Set : \tvalue length:%d\tthread:%d\n", len(remainValues), workerNum)
 			err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
 			//log.Printf("set value length:%d\n", len(remainValues))
 			if err != nil {
 				//log.Fatalf("get miss Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainValues), workerNum, queryString)
-				log.Printf("get miss Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainValues), workerNum, queryString)
+				//log.Printf("get miss Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainValues), workerNum, queryString)
 				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
 			} else {
 				//log.Printf("STORED.")
@@ -1784,7 +1756,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 
 		/* 把查询结果从字节流转换成 Response 结构 */
 		// values为空时的处理、多线程的原子性
-		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponse(values)
+		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponseWithDatatype(values, datatype)
 
 		if flagNum == 0 { // 全部命中
 			//log.Printf("GET.")
@@ -1851,7 +1823,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 			//	Time_end:    maxTime,
 			//	NumOfTables: int64(numOfTableR),
 			//})
-			log.Printf("partial get Set : \tvalue length:%d\tthread:%d\n", len(remainByteArr), workerNum)
+			//log.Printf("partial get Set : \tvalue length:%d\tthread:%d\n", len(remainByteArr), workerNum)
 			err = STsConnArr[CacheIndex].Set(&stscache.Item{
 				Key:         semanticSegment,
 				Value:       remainByteArr,
@@ -1862,7 +1834,7 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 
 			if err != nil {
 				//log.Fatalf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
-				log.Printf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
+				//log.Printf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
 			} else {
 				//log.Println("STORED.")
 				//log.Printf("bytes set:%d\n", len(remainByteArr))

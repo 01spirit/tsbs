@@ -69,6 +69,7 @@ func GetContinuousRandomSubset() ([]int, error) {
 	// 要取的结果数量
 	//resNum := (rand.Intn(4) + 1) * 10 // 生成 [0,4) 的一个整数｛0,1,2,3｝，加一变成 ｛1,2,3,4｝，乘十变成｛10,20,30，40｝
 	resNum := 10
+	//resNum := 50
 	// 结果数组
 	result := make([]int, resNum)
 
@@ -108,8 +109,8 @@ func GetContinuousRandomSubset() ([]int, error) {
 		}
 		break
 	default:
-		// todo 默认生成 20 个
-		section := rand.Intn(10) * 10 // 生成[0,5) 的一个整数{0,1,2,3,4}，乘二十变成{0,20,40,60，80}
+		// todo 生成 50 个
+		section := rand.Intn(19) * 5 * 5 // 生成[0,20) 的一个整数，乘 25 变成{0,25,50....450}
 		fmt.Printf("result number: %d\tsection number: %d\n", resNum, section)
 		for i := 0; i < resNum; i++ {
 			result[i] = section

@@ -11,9 +11,123 @@ import (
 	"testing"
 )
 
+func TestByteArrayToResponseWithDatatype(t *testing.T) {
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:01:00Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:02:00Z' GROUP BY "name"`
+
+	urlString := "192.168.1.101:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	query := NewQuery(queryToBeSet, "iot_small", "s")
+	resp, _ := c.Query(query)
+
+	fmt.Printf("resp to be set:\n%s\n", resp.ToString())
+
+	semanticSegment, fields := GetSemanticSegmentAndFields(queryToBeSet)
+	startTime, endTime := GetQueryTimeRange(queryToBeSet)
+	numberOfTable := GetNumOfTable(resp)
+	fmt.Printf("1 set time: %s %s\n", TimeInt64ToString(startTime), TimeInt64ToString(endTime))
+	values := ResponseToByteArray(resp, queryToBeSet)
+
+	datatypes := GetDataTypeArrayFromSF(fields)
+	fmt.Println("datatypes")
+	for _, dt := range datatypes {
+		fmt.Printf(" %s ", dt)
+	}
+	fmt.Println()
+
+	err := conns[0].Set(&stscache.Item{
+		Key:         semanticSegment,
+		Value:       values,
+		Time_start:  startTime,
+		Time_end:    endTime,
+		NumOfTables: int64(numberOfTable),
+	})
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Println("SET.")
+		fmt.Printf("bytes set:%d\n", len(values))
+	}
+
+	qgst, qget := GetQueryTimeRange(queryToBeGet)
+	fmt.Printf("1 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
+	getValues, _, err := conns[0].Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		fmt.Println("GET.")
+		fmt.Printf("bytes get:%d\n", len(getValues))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	cr, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponse(getValues)
+
+	fmt.Println("resp get:")
+	fmt.Println(cr.ToString())
+
+	//for i := 0; i < len(flagArr); i++ {
+	//	fmt.Printf("number:%d:\tflag:%d\ttime range:%d-%d\ttag:%s:%s\n", i, flagArr[i], timeRangeArr[i][0], timeRangeArr[i][1], tagArr[i][0], tagArr[i][1])
+	//}
+
+	if flagNum > 0 {
+		remainQueryString, minTime, maxTime := RemainQueryString(queryToBeSet, flagArr, timeRangeArr, tagArr)
+		//fmt.Printf("remain query string:\n%s\n", remainQueryString)
+		//fmt.Printf("remain min time:\n%d\t%s\n", minTime, TimeInt64ToString(minTime))
+		//fmt.Printf("remain max time:\n%d\t%s\n", maxTime, TimeInt64ToString(maxTime))
+
+		remainQuery := NewQuery(remainQueryString, "iot_small", "s")
+		remainResp, _ := c.Query(remainQuery)
+		remainByteArr := ResponseToByteArray(remainResp, queryToBeGet)
+		numOfTableR := len(remainResp.Results[0].Series)
+
+		fmt.Printf("2 set time: %s %s\n", TimeInt64ToString(minTime), TimeInt64ToString(maxTime))
+		fmt.Printf("resp to be set:\n%s\n", remainResp.ToString())
+
+		err = conns[0].Set(&stscache.Item{
+			Key:         semanticSegment,
+			Value:       remainByteArr,
+			Time_start:  minTime,
+			Time_end:    maxTime,
+			NumOfTables: int64(numOfTableR),
+		})
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			fmt.Println("SET.")
+			fmt.Printf("bytes set:%d\n", len(remainByteArr))
+		}
+	}
+
+	qgst, qget = GetQueryTimeRange(queryToBeGet)
+	fmt.Printf("2 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
+	getValues, _, err = conns[0].Get(semanticSegment, qgst, qget)
+	if errors.Is(err, stscache.ErrCacheMiss) {
+		log.Printf("Key not found in cache")
+	} else if err != nil {
+		log.Fatalf("Error getting value: %v", err)
+	} else {
+		fmt.Println("GET.")
+		fmt.Printf("bytes get:%d\n", len(getValues))
+	}
+
+	/* 把查询结果从字节流转换成 Response 结构 */
+	cr, flagNum, flagArr, timeRangeArr, tagArr = ByteArrayToResponse(getValues)
+
+	fmt.Println("resp get :")
+	fmt.Println(cr.ToString())
+
+}
+
 func TestEmptyResponseToByteArray(t *testing.T) {
-	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:01Z' AND TIME <= '2018-01-01T00:00:05Z' GROUP BY "name"`
-	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:02Z' AND TIME <= '2018-01-01T00:00:04Z' GROUP BY "name"`
+	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:01Z' AND TIME < '2018-01-01T00:00:05Z' GROUP BY "name"`
+	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' or "name"='truck_1' AND TIME >= '2018-01-01T00:00:02Z' AND TIME < '2018-01-01T00:00:04Z' GROUP BY "name"`
 
 	urlString := "192.168.1.102:11211"
 	urlArr := strings.Split(urlString, ",")

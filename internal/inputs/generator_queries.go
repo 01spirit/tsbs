@@ -221,9 +221,9 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 
 	// 加入两个分布，用于生成随机时间范围
 	zipfian := distributionGenerator.NewZipfianWithItems(10, distributionGenerator.ZipfianConstant)
-	cntrForNew := counter.NewCounter(5 * 365)
+	cntrForNew := counter.NewCounter(1 * 365 * 2)
 	latestForNew := distributionGenerator.NewSkewedLatest(cntrForNew)
-	cntrForOld := counter.NewCounter(1 * 365)
+	cntrForOld := counter.NewCounter(90 * 2)
 	latestForOld := distributionGenerator.NewSkewedLatest(cntrForOld)
 
 	zipNums := make([]int64, 0)
