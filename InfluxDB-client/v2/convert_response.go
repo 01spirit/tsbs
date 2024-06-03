@@ -80,7 +80,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 	datatypes = append(datatypes, "int64")
 	//datatypes := GetDataTypeArrayFromResponse(resp)
 	//fmt.Println("try convert lock")
-	mu.Lock()
+	mtx.Lock()
 	//fmt.Println("convert lock")
 
 	semanticSegment := ""
@@ -128,7 +128,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 		newSepSeg = append(newSepSeg, seperateSemanticSegment...)
 	}
 	//fmt.Println("convert unlock")
-	mu.Unlock()
+	mtx.Unlock()
 	/* 每行数据的字节数 */
 	bytesPerLine := BytesPerLine(datatypes)
 
@@ -464,6 +464,13 @@ func ByteArrayToResponseWithDatatype(byteArray []byte, datatypes []string) (*Res
 		if strings.Compare(aggr, "empty") != 0 { // 聚合函数不为空，列名应该是聚合函数的名字
 			columns = append(columns, "time")
 			columns = append(columns, aggr)
+			// time mean mean_1 mean_2 mean_3
+			fields := strings.Split(sf, ",")
+			if len(fields) > 2 {
+				for j := 1; j < len(fields)-1; j++ {
+					columns = append(columns, fmt.Sprintf("%s_%d", aggr, j))
+				}
+			}
 		} else { // 没有聚合函数，用正常的列名
 			fields := strings.Split(sf, ",") // time[int64],randtag[string]...
 			for _, f := range fields {

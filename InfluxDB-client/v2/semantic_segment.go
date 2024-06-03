@@ -445,7 +445,7 @@ func SeperateSM(integratedSM string) []string {
 
 //var mu5 sync.Mutex
 
-// GetSeperateSemanticSegment 获取每张子表的 SM
+// GetSeperateSemanticSegment 获取每张子表的语义段
 func GetSeperateSemanticSegment(queryString string) []string {
 	results := make([]string, 0)
 

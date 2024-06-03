@@ -18,7 +18,7 @@ reading is composed of the following:
   by a space
 - several comma-separated items of fields in the format `<label>=<value>`
   followed by a space
-- a timestamp for the record
+- a newSeries for the record
 - a newline character `\n`
 
 An example reading from the `iot` use case looks like the following:
@@ -76,7 +76,7 @@ quick benchmarks:
 ```bash
 ~/tmp/go/bin/tsbs_generate_data \
 --use-case="cpu-only" --seed=123 --scale=4000 \
---timestamp-start="2016-01-01T00:00:00Z" --timestamp-end="2016-01-01T01:00:00Z" \
+--newSeries-start="2016-01-01T00:00:00Z" --newSeries-end="2016-01-01T01:00:00Z" \
 --log-interval="10s" --format="influx" > /tmp/data
 ```
 
@@ -85,7 +85,7 @@ To generate a full data set for more intensive benchmarks:
 ```bash
 tsbs_generate_data \
 --use-case="cpu-only" --seed=123 --scale=4000 \
---timestamp-start="2016-01-01T00:00:00Z" --timestamp-end="2016-01-02T00:00:00Z" \
+--newSeries-start="2016-01-01T00:00:00Z" --newSeries-end="2016-01-02T00:00:00Z" \
 --log-interval="10s" --format="influx" > /tmp/data
 ```
 
@@ -123,7 +123,7 @@ cd ~/tmp/go/src/github.com/timescale/
 
 ~/tmp/go/bin/tsbs_generate_queries \
 --use-case="cpu-only" --seed=123 --scale=4000 \
---timestamp-start="2016-01-01T00:00:00Z" --timestamp-end="2016-01-02T00:00:01Z" \
+--newSeries-start="2016-01-01T00:00:00Z" --newSeries-end="2016-01-02T00:00:01Z" \
 --queries=1000 --query-type="single-groupby-5-8-1" \
 --format="questdb" > /tmp/queries_questdb
 
@@ -144,7 +144,7 @@ cd ~/tmp/go/src/github.com/timescale/
 
 ~/tmp/go/bin/tsbs_generate_queries \
 --use-case="cpu-only" --seed=123 --scale=4000 \
---timestamp-start="2016-01-01T00:00:00Z" --timestamp-end="2016-01-02T00:00:01Z" \
+--newSeries-start="2016-01-01T00:00:00Z" --newSeries-end="2016-01-02T00:00:01Z" \
 --queries=1000 --query-type="high-cpu-1" --format="questdb" > /tmp/queries_questdb
 
 ~/tmp/go/bin/tsbs_run_queries_questdb --file /tmp/queries_questdb --print-interval 500

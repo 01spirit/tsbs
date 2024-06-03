@@ -25,18 +25,19 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 	query := NewQuery(queryToBeSet, "iot_small", "s")
 	resp, _ := c.Query(query)
 
-	fmt.Printf("resp to be set:\n%s\n", resp.ToString())
+	fmt.Println()
+	fmt.Printf("\tresp to be set:\n%s\n", resp.ToString())
 
 	semanticSegment, fields := GetSemanticSegmentAndFields(queryToBeSet)
 	startTime, endTime := GetQueryTimeRange(queryToBeSet)
 	numberOfTable := GetNumOfTable(resp)
-	fmt.Printf("1 set time: %s %s\n", TimeInt64ToString(startTime), TimeInt64ToString(endTime))
+	fmt.Printf("111 set time: %s %s\n", TimeInt64ToString(startTime), TimeInt64ToString(endTime))
 	values := ResponseToByteArray(resp, queryToBeSet)
 
 	datatypes := GetDataTypeArrayFromSF(fields)
 	fmt.Println("datatypes")
 	for _, dt := range datatypes {
-		fmt.Printf(" %s ", dt)
+		fmt.Printf("%s ", dt)
 	}
 	fmt.Println()
 
@@ -55,7 +56,8 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 	}
 
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
-	fmt.Printf("1 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
+	fmt.Println()
+	fmt.Printf("111 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
 	getValues, _, err := conns[0].Get(semanticSegment, qgst, qget)
 	if errors.Is(err, stscache.ErrCacheMiss) {
 		log.Printf("Key not found in cache")
@@ -68,8 +70,8 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 
 	/* 把查询结果从字节流转换成 Response 结构 */
 	cr, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponse(getValues)
-
-	fmt.Println("resp get:")
+	fmt.Println()
+	fmt.Println("\tresp get:")
 	fmt.Println(cr.ToString())
 
 	//for i := 0; i < len(flagArr); i++ {
@@ -87,8 +89,9 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 		remainByteArr := ResponseToByteArray(remainResp, queryToBeGet)
 		numOfTableR := len(remainResp.Results[0].Series)
 
-		fmt.Printf("2 set time: %s %s\n", TimeInt64ToString(minTime), TimeInt64ToString(maxTime))
-		fmt.Printf("resp to be set:\n%s\n", remainResp.ToString())
+		fmt.Println()
+		fmt.Printf("222 set time: %s %s\n", TimeInt64ToString(minTime), TimeInt64ToString(maxTime))
+		fmt.Printf("\tresp to be set:\n%s\n", remainResp.ToString())
 
 		err = conns[0].Set(&stscache.Item{
 			Key:         semanticSegment,
@@ -104,9 +107,9 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 			fmt.Printf("bytes set:%d\n", len(remainByteArr))
 		}
 	}
-
+	fmt.Println()
 	qgst, qget = GetQueryTimeRange(queryToBeGet)
-	fmt.Printf("2 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
+	fmt.Printf("222 get time: %s %s\n", TimeInt64ToString(qgst), TimeInt64ToString(qget))
 	getValues, _, err = conns[0].Get(semanticSegment, qgst, qget)
 	if errors.Is(err, stscache.ErrCacheMiss) {
 		log.Printf("Key not found in cache")
@@ -119,8 +122,8 @@ func TestByteArrayToResponseWithDatatype(t *testing.T) {
 
 	/* 把查询结果从字节流转换成 Response 结构 */
 	cr, flagNum, flagArr, timeRangeArr, tagArr = ByteArrayToResponse(getValues)
-
-	fmt.Println("resp get :")
+	fmt.Println()
+	fmt.Println("\tresp get :")
 	fmt.Println(cr.ToString())
 
 }

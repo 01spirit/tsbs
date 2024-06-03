@@ -143,8 +143,8 @@ be used to benchmark data loading of the database(s) chosen using
 the `tsbs_generate_data` tool:
 ```bash
 $ tsbs_generate_data --use-case="iot" --seed=123 --scale=4000 \
-    --timestamp-start="2016-01-01T00:00:00Z" \
-    --timestamp-end="2016-01-04T00:00:00Z" \
+    --newSeries-start="2016-01-01T00:00:00Z" \
+    --newSeries-end="2016-01-04T00:00:00Z" \
     --log-interval="10s" --format="timescaledb" \
     | gzip > /tmp/timescaledb-data.gz
 
@@ -187,8 +187,8 @@ helper script.
 For generating just one set of queries for a given type:
 ```bash
 $ tsbs_generate_queries --use-case="iot" --seed=123 --scale=4000 \
-    --timestamp-start="2016-01-01T00:00:00Z" \
-    --timestamp-end="2016-01-04T00:00:01Z" \
+    --newSeries-start="2016-01-01T00:00:00Z" \
+    --newSeries-end="2016-01-04T00:00:01Z" \
     --queries=1000 --query-type="breakdown-frequency" --format="timescaledb" \
     | gzip > /tmp/timescaledb-queries-breakdown-frequency.gz
 ```
@@ -306,7 +306,7 @@ loaded 103680000 rows in 936.525765sec with 8 workers (mean rate 110707.044978/s
 ```
 
 All but the last two lines contain the data in CSV format, with column names in the header. Those column names correspond to:
-* timestamp,
+* newSeries,
 * metrics per second in the period,
 * total metrics inserted,
 * overall metrics per second,

@@ -14,7 +14,7 @@ The serialized format is not (easily) human readable, but one line can be descri
 <number of metrics> <length of name and tags> <name and tags> <length of field key_1> <length of timestamp_1 and field value_1> <field key_1> <packed timestamp_1 and value_1> <length of field key_2> <length of timestamp_1 and field value_2> <field key_2> <packed timestamp_1 and value_2>... etc.
 
 ```
-The measurement name, tags and field key will compose the SiriDB series name when the data is inserted. The timestamp and field value are packed with [Go-QPack](https://github.com/transceptor-technology/go-qpack). Go-QPack serializes the data in the right format for SiriDB.
+The measurement name, tags and field key will compose the SiriDB series name when the data is inserted. The newSeries and field value are packed with [Go-QPack](https://github.com/transceptor-technology/go-qpack). Go-QPack serializes the data in the right format for SiriDB.
 
 ---
 

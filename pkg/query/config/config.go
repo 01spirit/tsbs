@@ -30,7 +30,8 @@ type QueryGeneratorConfig struct {
 	MongoUseNaive bool   `mapstructure:"mongo-use-native"`
 	DbName        string `mapstructure:"db-name"`
 
-	Ratio string `mapstructure:"ratio"`
+	Ratio      string `mapstructure:"ratio"`
+	TruckScale string `mapstructure:truck-scale`
 }
 
 // Validate checks that the values of the QueryGeneratorConfig are reasonable.
@@ -66,4 +67,5 @@ func (c *QueryGeneratorConfig) AddToFlagSet(fs *pflag.FlagSet) {
 
 	fs.String("db-name", "benchmark", "Specify database name. Timestream requires it in order to generate the queries")
 	fs.String("ratio", "8:1", "Specify new data and old data")
+	fs.String("truck-scale", "small", "Specify query truck scale: small, medium or large")
 }

@@ -23,7 +23,7 @@ cpu,usage_user,usage_system,usage_idle,usage_nice,usage_iowait,usage_irq,usage_s
 ```
 
 A single record consists of the table name, a JSON representation of tags,
-timestamp, and rest measurement values. For instance, a partial example of a
+newSeries, and rest measurement values. For instance, a partial example of a
 single record for the `cpu-only` use case:
 
 ```text

@@ -29,7 +29,7 @@ the same format as for InfluxDB. This is "pseudo-CSV" format, each reading
 is composed of a single line where the name of the table is the first item,
 a comma, followed by several comma-separated items of tags in the format
 of `<label>=<value>`, a space, several comma-separated items of fields
-in the format of `<label>=<value>`, a space, and finally the timestamp
+in the format of `<label>=<value>`, a space, and finally the newSeries
 for the reading.
 
 An example for the `cpu-only` use case:
@@ -37,7 +37,7 @@ An example for the `cpu-only` use case:
 cpu,hostname=host_0,region=eu-central-1,datacenter=eu-central-1b,rack=21,os=Ubuntu15.10,arch=x86,team=SF,service=6,service_version=0,service_environment=test usage_user=58.1317132304976170,usage_system=2.6224297271376256,usage_idle=24.9969495069947882,usage_nice=61.5854484633778867,usage_iowait=22.9481393231639395,usage_irq=63.6499207106198313,usage_softirq=6.4098777048301052,usage_steal=44.8799140503027445,usage_guest=80.5028770761136201,usage_guest_nice=38.2431182911542820 1451606400000000000
 ```
 
-Remember to set `-timestamp-start` and `-timestamp-end` flags in range
+Remember to set `-newSeries-start` and `-newSeries-end` flags in range
 of VictoriaMetrics [retention period](https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-start-victoriametrics).
 All data out of retention period will be automatically deleted after insertion.
 

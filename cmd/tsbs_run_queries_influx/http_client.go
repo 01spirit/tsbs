@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,13 +128,11 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	//_, err = Workloads()
 
 	//log.Println(string(q.RawQuery))
-	if client.UseCache == "stscache" {
+	if strings.EqualFold(client.UseCache, "stscache") {
 
 		_, byteLength, hitKind = client.IntegratedClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery), workerNum)
 
 	} else if client.UseCache == "fatcache" {
-
-		_, byteLength, hitKind = client.FatcacheClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery), workerNum)
 
 	} else { // database
 

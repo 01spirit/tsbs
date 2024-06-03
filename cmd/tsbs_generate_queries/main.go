@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	common2 "github.com/timescale/tsbs/cmd/tsbs_generate_queries/uses/common"
 	"github.com/timescale/tsbs/pkg/data/usecases/common"
 	"github.com/timescale/tsbs/pkg/query/config"
 	"os"
@@ -116,6 +117,7 @@ func init() {
 	}
 	common.Ratio[0] = n1
 	common.Ratio[1] = n2
+	common2.TruckScale = viper.GetString("truck-scale")
 }
 
 func main() {

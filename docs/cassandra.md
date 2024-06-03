@@ -16,7 +16,7 @@ the following elements:
 * then, several elements of the form `<label>=<value>` for tags;
 * then, the field label;
 * then, the date of the reading in YYYY-MM-DD form;
-* then, the timestamp in nanoseconds;
+* then, the newSeries in nanoseconds;
 * and finally, the reading itself.
 
 An example from `cpu-only`:

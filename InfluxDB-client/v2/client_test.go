@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -12,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -1159,79 +1157,6 @@ func TestTSCacheByteToValue(t *testing.T) {
 			fmt.Println(bytes.Equal(ResponseToByteArray(resp, tt.queryString), ResponseToByteArray(respConverted, tt.queryString)))
 
 		})
-	}
-}
-
-func TestSplitResponseByTime(t *testing.T) {
-	queryString := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T03:20:00Z' and hostname='host_0'`
-	qs := NewQuery(queryString, DB, "s")
-	resp, _ := c.Query(qs)
-
-	//fmt.Println(resp.ToString())
-
-	splitResp, _, starts, ends := SplitResponseValuesByTime(queryString, resp, TimeSize)
-	fmt.Println(len(splitResp))
-	for i := range splitResp {
-		fmt.Println(starts[i])
-		fmt.Println(ends[i])
-	}
-
-}
-
-func TestSetToFatCache(t *testing.T) {
-	//queryString := `SELECT latitude,longitude,elevation FROM "readings" WHERE "name"='truck_1' AND TIME >= '2021-12-31T12:00:00Z' AND TIME <= '2022-01-01T12:00:00Z' GROUP BY "name"`
-	queryString := `SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '2021-12-31T12:00:00Z' AND TIME <= '2022-01-01T12:00:00Z' GROUP BY "name"`
-
-	var wg sync.WaitGroup
-	for i := 0; i < 64; i++ {
-		wg.Add(1)
-		go SetToFatcache(c, queryString, 0, TimeSize)
-	}
-	wg.Wait()
-	//SetToFatcache(queryString, TimeSize)
-	//st, et := GetQueryTimeRange(queryString)
-	//ss := GetSemanticSegment(queryString)
-	//ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
-	//log.Printf("\tget:%s\n", ss)
-	//items, err := fatcacheConn.Get(ss)
-	//if err != nil {
-	//	log.Fatal(err)
-	//} else {
-	//	log.Println("GET.")
-	//	log.Println("\tget byte length:", len(items.Value))
-	//}
-
-}
-
-func TestGetFromFatcache(t *testing.T) {
-	file, err := os.Open("C:\\Users\\DELL\\Desktop\\workloads.txt")
-	if err != nil {
-		fmt.Println("打开文件时发生错误:", err)
-		return
-	}
-	defer file.Close()
-
-	// 使用 bufio 包创建一个新的 Scanner 对象
-	scanner := bufio.NewScanner(file)
-
-	queryString := ""
-	// 逐行读取文件内容并输出
-	for scanner.Scan() {
-		//fmt.Println(scanner.Text())
-		queryString = scanner.Text()
-		SetToFatcache(c, queryString, 0, "11m")
-
-		st, et := GetQueryTimeRange(queryString)
-		ss := GetSemanticSegment(queryString)
-		ss = fmt.Sprintf("%s[%d,%d]", ss, st, et)
-		//items, err := fatcacheConn.Get(ss)
-		GetFromFatcache(queryString, 0, "11m")
-
-	}
-
-	// 检查是否有错误发生
-	if err := scanner.Err(); err != nil {
-		fmt.Println("读取文件时发生错误:", err)
 	}
 }
 

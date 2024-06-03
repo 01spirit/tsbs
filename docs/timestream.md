@@ -24,7 +24,7 @@ cpu,usage_user,usage_system,usage_idle,usage_nice,usage_iowait,usage_irq,usage_s
 
 Following this, each reading is composed of two rows:
 1. a comma-separated list of tag values for the reading, with the literal string `tags` as the first value in the list
-1. a comma-separated list of field values for the reading, with the hypertable the reading belongs to being the first value and the timestamp as the second value
+1. a comma-separated list of field values for the reading, with the hypertable the reading belongs to being the first value and the newSeries as the second value
 
 An example for the `cpu-only` use case:
 ```text
@@ -51,7 +51,7 @@ Dimension to use when hasing points to different workers
 
 #### loader.db-specific.use-current-time (type: `boolean`, default: `false`)
 
-Use the current local timestamp when creating the records to load.
+Use the current local newSeries when creating the records to load.
 Usefull when you don't want to worry about the retention period vs simulated period.
 
 #### loader.db-specific.mag-store-retention-in-days (type: `int`, default: `180`)
