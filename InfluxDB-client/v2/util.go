@@ -81,9 +81,13 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 	return minStartTime, maxEndTime
 }
 
-func GetSeriesTimeRange(series models.Row) (int64, int64) {
+func GetSeriesTimeRange(series models.Row) (int64, int64, error) {
 	var stime int64
 	var etime int64
+
+	if len(series.Values) == 0 {
+		return 0, 0, fmt.Errorf("empty series")
+	}
 
 	start := series.Values[0][0]                  // 第一条记录的时间		第一个查询结果
 	end := series.Values[len(series.Values)-1][0] // 最后一条记录的时间
@@ -94,7 +98,7 @@ func GetSeriesTimeRange(series models.Row) (int64, int64) {
 	stime, _ = st.Int64()
 	etime, _ = et.Int64()
 
-	return stime, etime
+	return stime, etime, nil
 }
 
 // GetQueryTimeRange 获取一条查询语句的时间范围	单位为秒 "s"

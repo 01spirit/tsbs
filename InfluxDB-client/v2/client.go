@@ -1528,61 +1528,16 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 			}
 
 			// todo 剩余结果合并
-			totalResp := Merge("1h", remainResp, convertedResponse)
+			//totalResp := Merge("1h", remainResp, convertedResponse)
+
+			totalResp := MergeRes(remainResp, convertedResponse)
 
 			byteLength += uint64(len(remainByteArr))
 
-			return totalResp[0], byteLength, hitKind
+			return totalResp, byteLength, hitKind
 			//return convertedResponse, byteLength, hitKind
 		}
 
 	}
 
 }
-
-// todo :
-// lists:
-
-// done 整合Set()函数
-
-// done 在工作站上安装InfluxDB1.8，下载样例数据库
-
-/* 详见 client_test.go 最后的说明 */
-// done : 修改 semantic segment ,去掉所有的时间范围 ST	，修改测试代码中所有包含时间范围的部分
-// done : 找到Get()方法的限制和什么因素有关，为什么会是读取64条数据，数据之间即使去掉换行符也不能读取更多，
-// done : key 的长度限制暂时设置为 450
-
-// done 1.把数据转为对应数量的byte
-// done 2.根据series确定SF的数据类型。
-// done 3.把转化好的byte传入fatcache中再取出，转为result
-/*
-	1.数据类型有4种：string/int64/float64/bool
-		字节数：		25/8/8/1
-	2.SF保存查寻结果中的所有列的列名和数据类型
-		根据这里的数据类型决定数据占用的字节数，以及把字节数组转换成什么数据类型
-		SF有两种可能：不使用聚合函数时，包含所有 SELECT 的 tag 和 field，
-					使用聚合函数时，列名可能是 MAX、MEAN 之类的，需要从 SELECT 语句中取出字段名
-		数据类型根据从结果中取的第一行数据进行判断，数据有 string、bool、json.Number 三种类型
-			需要把 json.Number 转换成 int64 或 float64
-			暂时方法：看能否进行类型转换，能转换成 int64 就是 int64， 否则是 float64 （?）	// 验证该方法是否可行 	可行
-
-			json.Number的 int64 可以转换成 float64； float64 不能转成  int64
-			底层调用了 strconv.ParseInt() 和 strconv.ParseFloat()
-
-	3.暂时把所有表的数据看成一张表的，测试能否成功转换
-		然后处理成和cache交互的具体格式
-		交互：
-			set key(semantic segment) start_time end_time SLen(num of series)
-			SM1(first series' tags) VLen1(num of the series' values' byte)
-			values([]byte)	(自己测试暂时加上换行符，之后交互时只传数据)
-			SM2(second series) VLen2
-			values([byte])
-	数据转换时根据SF的数据类型读取相应数量的字节，然后转换
-
-	result结构是数组嵌套，根据 semantic segment 获取其他元数据之后，通过从字节数组中解析出具体数据完成结果类型转换
-	fatcache Get() 返回 byte array ，存放在 []byte(itemValues) 中，把字节数组转换成字符串和数字类型，组合成Response结构
-
-	Get()会在查询结果的末尾添加 "\r\nEND",根据"END"停止从cache读取,不会把"END"存入Get()结果，但是"\r\n"会留在结果中，处理时要去掉末尾的"\r\n"
-		bytes := itemValues[:len(itemValues)-2]
-
-*/

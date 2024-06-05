@@ -101,11 +101,11 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 		STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
 		client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
 	} else if client.UseCache == "fatcache" {
-		client.FatcacheURL = config.CacheURL
-		FatcacheURLArr := strings.Split(client.FatcacheURL, ",")
-		client.FatcacheConnArr = client.InitFatcacheConnsArr(FatcacheURLArr)
-
-		client.TimeSize = config.TimeSize
+		//client.FatcacheURL = config.CacheURL
+		//FatcacheURLArr := strings.Split(client.FatcacheURL, ",")
+		//client.FatcacheConnArr = client.InitFatcacheConnsArr(FatcacheURLArr)
+		//
+		//client.TimeSize = config.TimeSize
 	}
 
 	//fmt.Println(client.UseCache)

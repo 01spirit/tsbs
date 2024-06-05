@@ -171,8 +171,14 @@ func MergeRes(resp1, resp2 *Response) *Response {
 }
 
 func mergeSeries(series1, series2 models.Row) models.Row {
-	st1, et1 := GetSeriesTimeRange(series1)
-	st2, et2 := GetSeriesTimeRange(series2)
+	st1, et1, err1 := GetSeriesTimeRange(series1)
+	if err1 != nil {
+		return series2
+	}
+	st2, et2, err2 := GetSeriesTimeRange(series2)
+	if err2 != nil {
+		return series1
+	}
 
 	if st2 > et1 {
 		//ser.Values = append(ser.Values, resp1.Results[0].Series[index1].Values...)
