@@ -100,45 +100,45 @@ func TestGetQueryTimeRange(t *testing.T) {
 
 func TestGetQueryTemplate(t *testing.T) {
 	tests := []struct {
-		name        string
-		queryString string
-		expected    string
+		name              string
+		queryString       string
+		expectedTemplate  string
+		expectedStartTime int64
+		expectedEndTime   int64
+		expectedTags      []string
 	}{
 		{
-			name:        "1",
-			queryString: "SELECT index FROM h2o_quality WHERE time > '2019-08-18T00:00:00Z' AND time <= '2019-08-18T00:30:00Z'",
-			expected:    "SELECT index FROM h2o_quality WHERE time >= ? AND time < ?",
-		},
-		{
-			name:        "2",
-			queryString: "SELECT index FROM h2o_quality WHERE time <= '2019-08-18T00:30:00Z'",
-			expected:    "SELECT index FROM h2o_quality WHERE time <= ?",
-		},
-		{
-			name:        "3",
-			queryString: "SELECT index FROM h2o_quality WHERE time >= '2019-08-18T00:00:00Z'",
-			expected:    "SELECT index FROM h2o_quality WHERE time >= ?",
-		},
-		{
-			name:        "4",
-			queryString: "SELECT index FROM h2o_quality WHERE time = '2019-08-18T00:00:00Z'",
-			expected:    "SELECT index FROM h2o_quality WHERE time = ?",
-		},
-		{
-			name:        "5",
-			queryString: "SELECT index FROM h2o_quality",
-			expected:    "SELECT index FROM h2o_quality",
+			name:              "1",
+			queryString:       `SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE ("name"='truck_0' or "name"='truck_12' or "name"='truck_1' or "name"='truck_10') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`,
+			expectedTemplate:  `SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE (?) AND TIME >= '?' AND TIME < '?' GROUP BY "name",time(10m)`,
+			expectedStartTime: 1640995200,
+			expectedEndTime:   1640998800,
+			expectedTags:      []string{"name=truck_0", "name=truck_1", "name=truck_10", "name=truck_12"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			replaced := GetQueryTemplate(tt.queryString)
+			replaced, startTime, endTime, tags := GetQueryTemplate(tt.queryString)
 
 			//fmt.Println(replaced)
 
-			if replaced != tt.expected {
+			if replaced != tt.expectedTemplate {
 				t.Errorf("replaces:%s", replaced)
-				t.Errorf("expected:%s", tt.expected)
+				t.Errorf("expected:%s", tt.expectedTemplate)
+			}
+			if startTime != tt.expectedStartTime {
+				t.Errorf("replaces:%d", startTime)
+				t.Errorf("expected:%d", tt.expectedStartTime)
+			}
+			if endTime != tt.expectedEndTime {
+				t.Errorf("replaces:%d", endTime)
+				t.Errorf("expected:%d", tt.expectedEndTime)
+			}
+			for i, tag := range tags {
+				if tag != tt.expectedTags[i] {
+					t.Errorf("replaces:%s", tag)
+					t.Errorf("expected:%s", tt.expectedTags[i])
+				}
 			}
 		})
 	}

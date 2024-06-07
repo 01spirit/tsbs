@@ -25,7 +25,7 @@ table MongoReading {
 }
 
 table MongoPoint {
-  measurementName:string;
+  metric:string;
   newSeries:long;
   tags:[MongoTag];
   fields:[MongoReading];

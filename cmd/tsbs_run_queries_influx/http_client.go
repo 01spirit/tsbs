@@ -54,50 +54,6 @@ func NewHTTPClient(host string) *HTTPClient {
 	}
 }
 
-//func Workloads() (resp *client.Response, err error) {
-//	file, err := os.Open("C:\\Users\\DELL\\Desktop\\workloads.txt")
-//	if err != nil {
-//		fmt.Println("打开文件时发生错误:", err)
-//		return nil, err
-//	}
-//	defer file.Close()
-//
-//	// 使用 bufio 包创建一个新的 Scanner 对象
-//	scanner := bufio.NewScanner(file)
-//
-//	queryString := ""
-//	// 逐行读取文件内容并输出
-//	for scanner.Scan() {
-//		//fmt.Println(scanner.Text())
-//		queryString = scanner.Text()
-//
-//		// 向数据库查询
-//		query := client.NewQuery(queryString, client.DB, "s")
-//		resp, err = DBConn.Query(query)
-//		//log.Println(queryString)
-//
-//		// 向 STsCache 查询
-//		//client.IntegratedClient(queryString)
-//
-//		//log.Printf("\tget:%s\n", ss)
-//		//if err != nil {
-//		//	//log.Fatal(err)
-//		//	//log.Println("NOT GET.")
-//		//} else {
-//		//	log.Println("\tGET.")
-//		//	//log.Println("\tget byte length:", len(items.Value))
-//		//}
-//
-//	}
-//
-//	// 检查是否有错误发生
-//	if err := scanner.Err(); err != nil {
-//		fmt.Println("读取文件时发生错误:", err)
-//	}
-//
-//	return resp, nil
-//}
-
 // Do performs the action specified by the given Query. It uses fasthttp, and
 // tries to minimize heap allocations.
 func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int) (float64, uint64, uint8, error) {
@@ -117,20 +73,13 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 	hitKind := uint8(0)
 	err := error(nil)
 
-	// todo 集成客户端
-
-	//ss := client.GetSemanticSegment(string(q.RawQuery))
-	//println(ss)
 	// Perform the request while tracking latency:
 	start := time.Now() // 发送请求之前的时间
-
-	// todo 在这里向客户端发送请求，是发送 HTTP 请求，还是调用接口，传入查询语句
-	//_, err = Workloads()
 
 	//log.Println(string(q.RawQuery))
 	if strings.EqualFold(client.UseCache, "stscache") {
 
-		_, byteLength, hitKind = client.IntegratedClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery), workerNum)
+		_, byteLength, hitKind = client.STsCacheClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery))
 
 	} else if client.UseCache == "fatcache" {
 

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -986,180 +985,6 @@ func TestClient_ReadStatementId(t *testing.T) {
 	}
 }
 
-func TestTSCacheParameter(t *testing.T) {
-	tests := []struct {
-		name        string
-		queryString string
-		expected    string
-	}{
-		{
-			name:        "1",
-			queryString: "SELECT index,randtag FROM h2o_quality GROUP BY location limit 5",
-			expected: "" +
-				"(h2o_quality.location=coyote_creek).time[int64] 40" +
-				"1566000000000000000 1566000360000000000 1566000720000000000 1566001080000000000 1566001440000000000 " +
-				"(h2o_quality.location=coyote_creek).index[int64] 40" +
-				"41 11 38 50 35 " +
-				"(h2o_quality.location=coyote_creek).randtag[string] 125" +
-				"1 3 1 1 3 " +
-				"(h2o_quality.location=santa_monica).time[int64] 40" +
-				"1566000000000000000 1566000360000000000 1566000720000000000 1566001080000000000 1566001440000000000 " +
-				"(h2o_quality.location=santa_monica).index[int64] 40" +
-				"99 56 65 57 8 " +
-				"(h2o_quality.location=santa_monica).randtag[string] 125" +
-				"2 2 3 3 3 ",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, DB, "s")
-			resp, err := c.Query(query)
-			if err != nil {
-				fmt.Println(err)
-			}
-			datatypes := GetDataTypeArrayFromResponse(resp)
-
-			tag_field, field_len, field_value := TSCacheParameter(resp)
-
-			//table_num := len(tag_field)
-			column_num := len(tag_field[0])
-			arg1 := make([]string, 0)
-			for i := range tag_field { // 子表数量
-				for j := range tag_field[i] { // 列数量
-					//fmt.Printf("%s %d\n", tag_field[i][j], field_len[i][j])
-					str := fmt.Sprintf("%s %d", tag_field[i][j], field_len[i][j])
-					arg1 = append(arg1, str)
-				}
-			}
-
-			for i := range arg1 {
-				fmt.Println(arg1[i])
-				for _, value := range field_value[i] {
-					switch datatypes[i%column_num] { // 每列数据的数据类型
-					case "string":
-						tmp_string := ByteArrayToString(value)
-						fmt.Printf("%s ", tmp_string)
-
-						break
-					case "int64":
-						tmp_int, _ := ByteArrayToInt64(value)
-						fmt.Printf("%d ", tmp_int)
-
-						break
-
-					case "float64":
-						tmp_float, _ := ByteArrayToFloat64(value)
-						fmt.Printf("%f ", tmp_float)
-
-						break
-					default:
-						tmp_bool, _ := ByteArrayToBool(value)
-						fmt.Printf("%v ", tmp_bool)
-					}
-				}
-				fmt.Println()
-			}
-
-		})
-	}
-}
-
-func TestTSCacheByteToValue(t *testing.T) {
-	tests := []struct {
-		name        string
-		queryString string
-		exected     string
-	}{
-		{
-			name:        "1",
-			queryString: "SELECT index,randtag FROM h2o_quality GROUP BY location limit 5",
-			exected: "SCHEMA time index randtag location=coyote_creek " +
-				"1566000000000000000 41 1 " +
-				"1566000360000000000 11 3 " +
-				"1566000720000000000 38 1 " +
-				"1566001080000000000 50 1 " +
-				"1566001440000000000 35 3 " +
-				"SCHEMA time index randtag location=santa_monica " +
-				"1566000000000000000 99 2 " +
-				"1566000360000000000 56 2 " +
-				"1566000720000000000 65 3 " +
-				"1566001080000000000 57 3 " +
-				"1566001440000000000 8 3 " +
-				"end",
-		},
-		{
-			name:        "2",
-			queryString: "SELECT index,randtag FROM h2o_quality GROUP BY location,randtag limit 5",
-			exected: "SCHEMA time index randtag location=coyote_creek randtag=1 " +
-				"1566000000000000000 41 1 " +
-				"1566000720000000000 38 1 " +
-				"1566001080000000000 50 1 " +
-				"1566002160000000000 24 1 " +
-				"1566004320000000000 94 1 " +
-				"SCHEMA time index randtag location=coyote_creek randtag=2 " +
-				"1566001800000000000 49 2 " +
-				"1566003240000000000 32 2 " +
-				"1566003960000000000 50 2 " +
-				"1566005040000000000 90 2 " +
-				"1566007200000000000 44 2 " +
-				"SCHEMA time index randtag location=coyote_creek randtag=3 " +
-				"1566000360000000000 11 3 " +
-				"1566001440000000000 35 3 " +
-				"1566002520000000000 92 3 " +
-				"1566002880000000000 56 3 " +
-				"1566003600000000000 68 3 " +
-				"SCHEMA time index randtag location=santa_monica randtag=1 " +
-				"1566004680000000000 9 1 " +
-				"1566006120000000000 49 1 " +
-				"1566006840000000000 4 1 " +
-				"1566007200000000000 39 1 " +
-				"1566007560000000000 46 1 " +
-				"SCHEMA time index randtag location=santa_monica randtag=2 " +
-				"1566000000000000000 99 2 " +
-				"1566000360000000000 56 2 " +
-				"1566001800000000000 36 2 " +
-				"1566002160000000000 92 2 " +
-				"1566005400000000000 69 2 " +
-				"SCHEMA time index randtag location=santa_monica randtag=3 " +
-				"1566000720000000000 65 3 " +
-				"1566001080000000000 57 3 " +
-				"1566001440000000000 8 3 " +
-				"1566002520000000000 87 3 " +
-				"1566002880000000000 81 3 " +
-				"end",
-		},
-		{
-			name:        "3",
-			queryString: "SELECT index,randtag,location FROM h2o_quality GROUP BY location,randtag",
-			exected:     "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			query := NewQuery(tt.queryString, DB, "s")
-			resp, err := c.Query(query)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			byteArray := TSCacheValueToByte(resp)
-			respConverted := TSCacheByteToValue(byteArray)
-
-			fmt.Printf("resp:\n%s\n", resp.ToString())
-			//fmt.Println(byteArray)
-			fmt.Printf("resp converted:\n%s\n", respConverted.ToString())
-
-			fmt.Println(*resp)
-			fmt.Println(*respConverted)
-
-			fmt.Println("\nbytes are equal:")
-			fmt.Println(bytes.Equal(ResponseToByteArray(resp, tt.queryString), ResponseToByteArray(respConverted, tt.queryString)))
-
-		})
-	}
-}
-
 func TestRepeatSetToStscache(t *testing.T) {
 	query1 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'`
 	query2 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:20Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
@@ -1170,8 +995,6 @@ func TestRepeatSetToStscache(t *testing.T) {
 	numOfTab := GetNumOfTable(resp1)
 
 	semanticSegment := GetSemanticSegment(query1)
-	queryTemplate := GetQueryTemplate(query1)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(resp1, query1)
 	fmt.Println(resp1.ToString())
 
@@ -1189,8 +1012,6 @@ func TestRepeatSetToStscache(t *testing.T) {
 	numOfTab2 := GetNumOfTable(resp2)
 
 	semanticSegment2 := GetSemanticSegment(query2)
-	queryTemplate2 := GetQueryTemplate(query2)
-	QueryTemplates[queryTemplate2] = semanticSegment2
 	respCacheByte2 := ResponseToByteArray(resp2, query2)
 	fmt.Println(resp2.ToString())
 
@@ -1229,8 +1050,6 @@ func TestIntegratedClient(t *testing.T) {
 	numOfTab := GetNumOfTable(respCache)
 
 	semanticSegment := GetSemanticSegment(queryToBeSet)
-	queryTemplate := GetQueryTemplate(queryToBeSet)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
 	//fmt.Println(respCache.ToString())
 	log.Printf("bytes to be set:%d\n", len(respCacheByte))
@@ -1244,7 +1063,7 @@ func TestIntegratedClient(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(c, queryToBeGet, 0)
+	STsCacheClient(c, queryToBeGet)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1277,8 +1096,6 @@ func TestIntegratedClientIOT(t *testing.T) {
 	numOfTab := GetNumOfTable(respCache)
 
 	semanticSegment := GetSemanticSegment(queryToBeSet)
-	queryTemplate := GetQueryTemplate(queryToBeSet)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
 	//fmt.Println(respCache.ToString())
 	log.Printf("bytes to be set:%d\n", len(respCacheByte))
@@ -1292,7 +1109,7 @@ func TestIntegratedClientIOT(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(c, queryToBeGet, 0)
+	STsCacheClient(c, queryToBeGet)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1329,8 +1146,6 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	numOfTab := GetNumOfTable(respCache)
 
 	semanticSegment := GetSemanticSegment(queryToBeSet)
-	queryTemplate := GetQueryTemplate(queryToBeSet)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
 	//fmt.Println(respCache.ToString())
 	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
@@ -1345,7 +1160,7 @@ func TestIntegratedClientIOT100(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(c, queryToBeGet, 0)
+	STsCacheClient(c, queryToBeGet)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1378,8 +1193,6 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	numOfTab := GetNumOfTable(respCache)
 
 	semanticSegment := GetSemanticSegment(queryToBeSet)
-	queryTemplate := GetQueryTemplate(queryToBeSet)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, queryToBeSet)
 	//fmt.Println(respCache.ToString())
 	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
@@ -1394,7 +1207,7 @@ func TestIntegratedClientIOTBehindHit(t *testing.T) {
 	}
 
 	/* 向 cache get 0-40 的数据，缺失的数据向数据库查询并存入 cache */
-	IntegratedClient(c, queryToBeGet, 0)
+	STsCacheClient(c, queryToBeGet)
 
 	/* 向 cache get 0-40 的数据 */
 	qgst, qget := GetQueryTimeRange(queryToBeGet)
@@ -1427,8 +1240,6 @@ func TestIntegratedClientIOT2(t *testing.T) {
 	numOfTab := GetNumOfTable(respCache)
 
 	semanticSegment := GetSemanticSegment(query1)
-	queryTemplate := GetQueryTemplate(query1)
-	QueryTemplates[queryTemplate] = semanticSegment
 	respCacheByte := ResponseToByteArray(respCache, query1)
 	//fmt.Println(respCache.ToString())
 	fmt.Printf("bytes to be set:%d\n", len(respCacheByte))
@@ -1448,8 +1259,6 @@ func TestIntegratedClientIOT2(t *testing.T) {
 	numOfTab2 := GetNumOfTable(respCache2)
 
 	semanticSegment2 := GetSemanticSegment(query2)
-	queryTemplate2 := GetQueryTemplate(query2)
-	QueryTemplates[queryTemplate2] = semanticSegment2
 	respCacheByte2 := ResponseToByteArray(respCache2, query2)
 	//fmt.Println(respCache.ToString())
 	fmt.Printf("bytes to be set:%d\n", len(respCacheByte2))
@@ -1490,7 +1299,7 @@ func TestMultiThreadSTsCache(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		wg.Add(1)
 		go func() {
-			IntegratedClient(c, queryToBeGet, i)
+			STsCacheClient(c, queryToBeGet)
 			//query := NewQuery(queryToBeGet, "iot", "s")
 			//resp, _ := c.Query(query)
 			//ss := GetSemanticSegment(queryToBeGet)
@@ -1640,83 +1449,156 @@ func TestClient_QueryFromDatabase(t *testing.T) {
 	fmt.Println(err)
 }
 
-//func TestDualDB(t *testing.T) {
-//	queryString1 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
-//	queryString2 := `select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:40Z' and hostname='host_0'`
-//
-//	index := 0
-//	for true {
-//
-//		if index == 0 {
-//			query1 := NewQuery(queryString1, DB, "s")
-//			_, _ = c.Query(query1)
-//		} else {
-//			query2 := NewQuery(queryString2, DB, "s")
-//			_, _ = cc.Query(query2)
-//		}
-//
-//		// 用异或运算在 0 和 1 之间切换
-//		index = index ^ 1
-//	}
-//
-//}
+func TestSTsCacheClient(t *testing.T) {
+	querySet := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+	queryGet := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T02:00:00Z' GROUP BY "name",time(10m)`
 
-// done 根据查询时向 client.Query() 传入的时间的参数不同，会返回string和int64的不同类型的时间戳
-/*
-	暂时把cache传回的字节数组只处理成int64
-*/
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_small"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
 
-// done Get()有长度限制，在哪里改
-/*
-	和字节数无关，只能读取最多 64 条数据（怎么会和数据条数相关 ?）
+	query := NewQuery(querySet, "iot_medium", "s")
+	resp1, err := dbConn.Query(query)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp1:\n", resp1.ToString())
+	}
+	values := ResponseToByteArray(resp1, querySet)
+	numOfTab := GetNumOfTable(resp1)
 
-	说明：Get()按照 '\n' 读取每一行数据，字节码为 10 ，如果数据中有 int64 类型的 10，会错误地把数字当作换行符结束读取，导致一行的结尾不是 CRLF，报错
-		可以去掉判断结尾是 CRLF 的异常处理，让Get()即使提前结束当前行的读取，也能继续读取下一行
-		但是应该怎么判断结束一行的读取 ?(答案在下面)
-*/
+	partialSegment := ""
+	fields := ""
+	metric := ""
+	queryTemplate, startTime, endTime, _ := GetQueryTemplate(querySet)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet)
+	QueryTemplateToPartialSegment[queryTemplate] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
 
-// done Get()设置合适的结束读取一行的条件，让他能完整的读取一行数据，不会混淆换行符和数字10
-/*
-	根本无所谓，无论Get()怎样从cache读取数据，无论当前读到的一行是否完整，都是把读到的所有字节直接存到字节数组中，不需要在Get()做任何处理
-	Get()读取完cache返回的所有数据之后，把 未经处理 的整个字节数组交由客户端转换成结果类型，转换过程按照数据类型读取固定的字节数并转换，不受Get()的读取方式的影响
-	Get()按任意方式从cache读取数据，最终的字节数组都是相同的，对结果没有影响
-*/
+	// 用于 Get 的语义段
+	//semanticSegment := GetTotalSegment(metric, tags, partialSegment)
 
-// done cache 的所有操作的 key 都有长度限制
-/*
-	key 长度限制在 fc_memcache.c 中
-		#define MEMCACHE_MAX_KEY_LENGTH 250  --->  change to 450
-*/
+	// 用于 Set 的语义段
+	starSegment := GetStarSegment(metric, partialSegment)
 
-// done  设计新的 TestMerge ，多用几组不同条件的查询和不同时间范围（表的数量尽量不同，顺带测试表结构合并）
-/*
-	当前的测试用例时间范围太大，导致表的数量基本相同，需要缩小时间范围，增加不同结果中表数量的差距
-	对于时间精度和时间范围的测试，受当前数据集影响，基本只能使用 h 精度合并，即使选取的时间精度是 m ，查询到的数据也不能合并
-	多测几组查询，用不同数量的tag、时间范围尽量小、让查询结果的表尽量不同
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
 
-	对 Merge 相关的函数都重新进行了一次测试，结果符合预期，应该没问题
-*/
+	resp2, _, _ := STsCacheClient(dbConn, queryGet)
+	fmt.Println("\tres2:\n", resp2.ToString())
 
-// done  检查和 Merge 相关的所有函数以及 Test 的边界条件（查询结果为空应该没问题， tag map 为空会怎样）
-/*
-	查询结果为空会在对表排序的步骤直接跳过，并根据排好序的结果进行合并，空结果不会有影响
-	tag map 为空就是下面所说的，只有一张表，tag字符串为空，数据直接合并成一张新的表；数据没有按照时间重新排序（不需要）
-*/
+}
 
-// done  表合并之后数据是否需要再处理成按照时间顺序排列
-/*
-	不同查询的时间范围没有重叠，一张表里的数据本身就是按照时间顺序排列的；
-	合并时两张表先按照起止时间排先后顺序，然后直接把后面的表的数据拼接到前面的表的数组上，这样就可以确保原本表内数据顺序不变，两张表的数据整体按照时间递增排列；
-	所以先排序再合并的两张表的数据本身时间顺序就是对的，不需要再处理
-*/
+func TestSTsCacheClient2(t *testing.T) {
+	querySet1 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:20:00Z' GROUP BY "name",time(10m)`
+	querySet2 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_50') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+	querySet3 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_99') AND TIME >= '2022-01-01T00:40:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
 
-// done  确定在没使用 GROUP BY 时合并的过程、tag map的处理（好像没问题，但是为什么）
-/*
-	此时结果中只有一个表，tag map为空，合并会直接把两个结果的数据拼接成一个表，分别是两张表的数据按照时间顺序排列
-	tag 字符串为空，存入数组时也是有长度的，不会出现数组越界，用空串进行比较等操作没有问题，会直接把唯一的表合并
-*/
+	queryGet := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
 
-// done  测试时Merge()传入不合适的时间精度时会报错，是什么引起的，怎么解决
-/*
-	时间精度不合适导致没能合并，此时结果中的表数量多于 expected 中的表数量，用tests的索引遍历输出expected的表时出现数组越界问题，不是Merge()函数本身的问题
-*/
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_medium"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_medium")
+	Fields = GetFieldKeys(c, "iot_medium")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	query1 := NewQuery(querySet1, "iot_medium", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp1:\n", resp1.ToString())
+	}
+	//values1 := ResponseToByteArray(resp1, querySet1)
+	numOfTab1 := GetNumOfTable(resp1)
+
+	partialSegment := ""
+	fields := ""
+	metric := ""
+	queryTemplate1, startTime1, endTime1, tags1 := GetQueryTemplate(querySet1)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet1)
+	QueryTemplateToPartialSegment[queryTemplate1] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes1 := GetDataTypeArrayFromSF(fields)
+
+	values1 := ResponseToByteArrayWithParams(resp1, datatypes1, tags1, metric, partialSegment)
+
+	// 用于 Get 的语义段
+	//semanticSegment := GetTotalSegment(metric, tags, partialSegment)
+	// 用于 Set 的语义段
+	starSegment := GetStarSegment(metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values1, Time_start: startTime1, Time_end: endTime1, NumOfTables: numOfTab1})
+
+	query2 := NewQuery(querySet2, "iot_medium", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp2:\n", resp2.ToString())
+	}
+	//values2 := ResponseToByteArray(resp2, querySet2)
+	numOfTab2 := GetNumOfTable(resp2)
+
+	queryTemplate2, startTime2, endTime2, tags2 := GetQueryTemplate(querySet2)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet2)
+	QueryTemplateToPartialSegment[queryTemplate2] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes2 := GetDataTypeArrayFromSF(fields)
+
+	values2 := ResponseToByteArrayWithParams(resp2, datatypes2, tags2, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values2, Time_start: startTime2, Time_end: endTime2, NumOfTables: numOfTab2})
+
+	query3 := NewQuery(querySet3, "iot_medium", "s")
+	resp3, err := dbConn.Query(query3)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp3:\n", resp3.ToString())
+	}
+	//values3 := ResponseToByteArray(resp3, querySet3)
+	numOfTab3 := GetNumOfTable(resp3)
+
+	queryTemplate3, startTime3, endTime3, tags3 := GetQueryTemplate(querySet3)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet3)
+	QueryTemplateToPartialSegment[queryTemplate3] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes3 := GetDataTypeArrayFromSF(fields)
+
+	values3 := ResponseToByteArrayWithParams(resp3, datatypes3, tags3, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values3, Time_start: startTime3, Time_end: endTime3, NumOfTables: numOfTab3})
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+	fmt.Println("\tresp get:\n", respGet.ToString())
+
+	queryG := NewQuery(queryGet, "iot_medium", "s")
+	respG, err := dbConn.Query(queryG)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp G:\n", respG.ToString())
+	}
+
+}

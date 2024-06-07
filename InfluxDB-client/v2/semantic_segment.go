@@ -3,46 +3,68 @@ package client
 import (
 	"fmt"
 	"github.com/influxdata/influxql"
-	"log"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // GetInterval 获取 GROUP BY interval
-func GetInterval(query string) string {
-	parser := influxql.NewParser(strings.NewReader(query))
-	stmt, _ := parser.ParseStatement()
+func GetInterval(queryString string) string {
 
-	/* 获取 GROUP BY interval */
-	s := stmt.(*influxql.SelectStatement)
-	interval, err := s.GroupByInterval()
-	if err != nil {
-		log.Fatalln("GROUP BY INTERVAL ERROR")
-	}
-
-	//fmt.Println("GROUP BY interval:\t", interval.String()) // 12m0s
-
-	if interval == 0 {
+	// 由语法树改为正则匹配
+	matchStr := `(?i).+GROUP BY (.+)`
+	conditionExpr := regexp.MustCompile(matchStr)
+	if ok, _ := regexp.MatchString(matchStr, queryString); !ok { // 没有 GROUP BY
 		return "empty"
-	} else {
-		//result := fmt.Sprintf("%dm", int(interval.Minutes()))
-		//return result
-		result := interval.String()
-		for idx, ch := range result {
-			if unicode.IsLetter(ch) {
-				if (idx+1) < len(result) && result[idx+1] == '0' {
-					return result[0 : idx+1]
-				}
-			}
-		}
+	}
+	condExprMatch := conditionExpr.FindStringSubmatch(queryString)
+	parseExpr := condExprMatch[1]
 
-		return result
+	groupby := strings.Split(parseExpr, ",")
+	for _, tag := range groupby {
+		if strings.Contains(tag, "time") {
+			tag = strings.TrimSpace(tag)
+			startIndex := strings.Index(tag, "(") + 1
+			endIndex := strings.Index(tag, ")")
+
+			interval := tag[startIndex:endIndex]
+
+			return interval
+		}
 	}
 
+	//parser := influxql.NewParser(strings.NewReader(query))
+	//stmt, _ := parser.ParseStatement()
+	//
+	///* 获取 GROUP BY interval */
+	//s := stmt.(*influxql.SelectStatement)
+	//interval, err := s.GroupByInterval()
+	//if err != nil {
+	//	log.Fatalln("GROUP BY INTERVAL ERROR")
+	//}
+	//
+	////fmt.Println("GROUP BY interval:\t", interval.String()) // 12m0s
+	//
+	//if interval == 0 {
+	//	return "empty"
+	//} else {
+	//	//result := fmt.Sprintf("%dm", int(interval.Minutes()))
+	//	//return result
+	//	result := interval.String()
+	//	for idx, ch := range result {
+	//		if unicode.IsLetter(ch) {
+	//			if (idx+1) < len(result) && result[idx+1] == '0' {
+	//				return result[0 : idx+1]
+	//			}
+	//		}
+	//	}
+	//
+	//	return result
+	//}
+
+	return "empty"
 }
 
 // GroupByTags GROUP BY 后面的 tags 的所有值
@@ -233,7 +255,7 @@ func getBinaryExpr(str string) *influxql.BinaryExpr {
 }
 
 // PredicatesAndTagConditions 条件谓词，区分出 field 的谓词和 tag 的谓词
-func PredicatesAndTagConditions(query string, measurement string, tagMap MeasurementTagMap) (string, []string) {
+func PredicatesAndTagConditions(query string, metric string, tagMap MeasurementTagMap) (string, []string) {
 	//regStr := `(?i).+WHERE(.+)GROUP BY.`
 	regStr := `(?i).+WHERE(.+)`
 	conditionExpr := regexp.MustCompile(regStr)
@@ -263,7 +285,7 @@ func PredicatesAndTagConditions(query string, measurement string, tagMap Measure
 		for i, p := range *predicates {
 			isTag := false
 			found := false
-			for _, t := range tagMap.Measurement[measurement] {
+			for _, t := range tagMap.Measurement[metric] {
 				for tagkey, _ := range t.Tag {
 					if (*tags)[i] == tagkey {
 						isTag = true
@@ -294,8 +316,8 @@ func PredicatesAndTagConditions(query string, measurement string, tagMap Measure
 	return result, tagConds
 }
 
-// MeasurementName 度量名称
-func MeasurementName(queryString string) string {
+// GetMetricName 度量名称
+func GetMetricName(queryString string) string {
 	regStr := `(?i)FROM(.+)WHERE`
 	conditionExpr := regexp.MustCompile(regStr)
 	if ok, _ := regexp.MatchString(regStr, queryString); !ok {
@@ -305,14 +327,11 @@ func MeasurementName(queryString string) string {
 	parseExpr := condExprMatch[1]
 
 	trimStr := strings.TrimSpace(parseExpr)
-	//if strings.Contains(trimStr, "\"") { // 去掉双引号
-	//	trimStr = trimStr[1 : len(trimStr)-1]
-	//}
 	trimStr = strings.ReplaceAll(trimStr, "\"", "")
 	splitIndex := strings.LastIndex(trimStr, ".") + 1
-	measurementName := trimStr[splitIndex:]
+	metric := trimStr[splitIndex:]
 
-	return measurementName
+	return metric
 }
 
 var combinations []string
@@ -443,14 +462,11 @@ func SeperateSM(integratedSM string) []string {
 	return sepSM
 }
 
-//var mu5 sync.Mutex
-
 // GetSeperateSemanticSegment 获取每张子表的语义段
 func GetSeperateSemanticSegment(queryString string) []string {
 	results := make([]string, 0)
 
-	//mu5.Lock()
-	queryTemplate := GetQueryTemplate(queryString)
+	queryTemplate, _, _, _ := GetQueryTemplate(queryString)
 	semanticSegment := ""
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 
@@ -468,7 +484,7 @@ func GetSeperateSemanticSegment(queryString string) []string {
 		}
 
 		SeprateSegments[semanticSegment] = results
-		//mu5.Unlock()
+
 		return results
 	} else {
 		semanticSegment = ss
@@ -521,7 +537,7 @@ func GetSeparateSemanticSegmentWithNullTag(seperateSemanticSegment string, nullT
 func GetSemanticSegment(queryString string) string {
 	result := ""
 
-	measurement := MeasurementName(queryString)
+	measurement := GetMetricName(queryString)
 	SP, tagConds := PredicatesAndTagConditions(queryString, measurement, TagKV)
 	fields, aggr := FieldsAndAggregation(queryString, measurement)
 	tags := GroupByTags(queryString, measurement)
@@ -537,7 +553,7 @@ func GetSemanticSegment(queryString string) string {
 func GetSemanticSegmentAndFields(queryString string) (string, string) {
 	result := ""
 
-	measurement := MeasurementName(queryString)
+	measurement := GetMetricName(queryString)
 	SP, tagConds := PredicatesAndTagConditions(queryString, measurement, TagKV)
 	fields, aggr := FieldsAndAggregation(queryString, measurement)
 	tags := GroupByTags(queryString, measurement)
@@ -547,4 +563,48 @@ func GetSemanticSegmentAndFields(queryString string) (string, string) {
 	result = fmt.Sprintf("%s#{%s}#%s#{%s,%s}", SM, fields, SP, aggr, interval)
 
 	return result, fields
+}
+
+// GetPartialSegmentAndFields 获取除 SM 之外的语义段和 fields (state[float64],grade[float64]) 和 matric
+func GetPartialSegmentAndFields(queryString string) (string, string, string) {
+	partialSegment := ""
+
+	metric := GetMetricName(queryString)
+	SP, _ := PredicatesAndTagConditions(queryString, metric, TagKV)
+	fields, aggr := FieldsAndAggregation(queryString, metric)
+	interval := GetInterval(queryString)
+
+	partialSegment = fmt.Sprintf("#{%s}#%s#{%s,%s}", fields, SP, aggr, interval)
+
+	return partialSegment, fields, metric
+}
+
+func GetSingleSegment(metric, partialSegment string, tags []string) []string {
+	result := make([]string, 0)
+
+	for _, tag := range tags {
+		tmpRes := fmt.Sprintf("{(%s.%s)}%s", metric, tag, partialSegment)
+		result = append(result, tmpRes)
+	}
+
+	return result
+}
+
+func GetStarSegment(metric, partialSegment string) string {
+
+	result := fmt.Sprintf("{(%s.*)}%s", metric, partialSegment)
+
+	return result
+}
+
+func GetTotalSegment(metric string, tags []string, partialSegment string) string {
+	result := ""
+
+	for _, tag := range tags {
+		result += fmt.Sprintf("(%s.%s)", metric, tag)
+	}
+
+	result = "{" + result + "}" + partialSegment
+
+	return result
 }

@@ -24,12 +24,9 @@ func GetNumOfTable(resp *Response) int64 {
 	return int64(len(resp.Results[0].Series))
 }
 
-//var mu4 sync.Mutex
-
 // GetResponseTimeRange 获取查询结果的时间范围；所有表的最大时间和最小时间
 // 从 response 中取数据，可以确保起止时间都有，只需要进行类型转换
 func GetResponseTimeRange(resp *Response) (int64, int64) {
-	//	mu4.Lock()
 	var minStartTime int64
 	var maxEndTime int64
 	var ist int64
@@ -43,11 +40,7 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 	for s := range resp.Results[0].Series {
 		/* 获取一张表的起止时间（string） */
 		length := len(resp.Results[0].Series[s].Values) //一个结果表中有多少条记录
-		//log.Printf("---------------------------\n")
-		//log.Printf("series:%d\n", s)
-		//log.Printf("name:%s\n", resp.Results[0].Series[s].Tags)
-		//log.Printf("values:%d\n", len(resp.Results[0].Series[s].Values))
-		//log.Printf("values:%d\n", len(resp.Results[0].Series[s].Values[0]))
+
 		if len(resp.Results[0].Series[s].Values) == 0 {
 			continue
 		}
@@ -77,7 +70,7 @@ func GetResponseTimeRange(resp *Response) (int64, int64) {
 			maxEndTime = iet
 		}
 	}
-	//mu4.Unlock()
+
 	return minStartTime, maxEndTime
 }
 
@@ -130,10 +123,6 @@ func GetQueryTimeRange(queryString string) (int64, int64) {
 		endTime = -1
 	}
 
-	// 调用了 influxql 解析查询时间范围的方法，对结束时间的边界条件敏感
-	//if start_time != -1 && start_time != end_time && !strings.Contains(queryString, ">=") { // " > start_time "，返回值要减一
-	//	start_time--
-	//}
 	if endTime != -1 && endTime != startTime && !strings.Contains(queryString, "<=") { // " < end_time "，返回值要加一
 		endTime++
 	}
@@ -141,32 +130,53 @@ func GetQueryTimeRange(queryString string) (int64, int64) {
 	return startTime, endTime
 }
 
-// GetQueryTemplate 用 "?" 替换查询语句的时间范围，重新排列符号，重构为查询模版
-func GetQueryTemplate(queryString string) string {
-	/* 替换时间 */
-	reg := regexp.MustCompile("\\'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\\'")
-	replacement := "?"
-	result := reg.ReplaceAllString(queryString, replacement)
+// GetQueryTemplate 取出时间范围和 tag，替换为查询模版
+func GetQueryTemplate(queryString string) (string, int64, int64, []string) {
+	var startTime int64
+	var endTime int64
 
-	/* 替换符号，使模版的第一个时间判断符号是 >= , 第二个是 < */
-	reg = regexp.MustCompile("[<>=]+")
-	num := len(reg.FindAllString(result, -1)) // 只有起止时间都被指定时才替换
-	if num == 2 {
-		replacement = "<"
-		result = reg.ReplaceAllString(result, replacement)
-		result = strings.Replace(result, "<", ">=", 1)
+	/* 替换时间 */
+	timeReg := regexp.MustCompile("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+	replacement := "?"
+
+	times := timeReg.FindAllString(queryString, -1)
+	if len(times) == 0 {
+		startTime = 0
+		endTime = 0
+	} else if len(times) == 1 {
+		startTime = TimeStringToInt64(times[0])
+		endTime = startTime
+	} else {
+		startTime = TimeStringToInt64(times[0])
+		endTime = TimeStringToInt64(times[1])
 	}
 
-	return result
+	result := timeReg.ReplaceAllString(queryString, replacement)
+
+	/* 替换 tag */
+	tagReg := `(?i)WHERE \((.+)\) AND`
+	conditionExpr := regexp.MustCompile(tagReg)
+	if ok, _ := regexp.MatchString(tagReg, queryString); !ok {
+		return "", 0, 0, nil
+	}
+	tagExprMatch := conditionExpr.FindStringSubmatch(result) // 获取 WHERE 后面的所有表达式，包括谓词和时间范围
+	tagString := tagExprMatch[1]
+	result = strings.ReplaceAll(result, tagString, replacement)
+
+	tagString = strings.ReplaceAll(tagString, "\"", "")
+	tagString = strings.ReplaceAll(tagString, "'", "")
+	tagString = strings.ReplaceAll(tagString, " ", "")
+
+	tags := strings.Split(tagString, "or")
+	sort.Strings(tags)
+
+	return result, startTime, endTime, tags
 }
 
 // GetFieldKeys 获取一个数据库中所有表的field name及其数据类型
 func GetFieldKeys(c Client, database string) map[string]map[string]string {
-	// 构建查询语句
-	//query := fmt.Sprintf("SHOW FIELD KEYS on %s from %s", database, measurement)
 	query := fmt.Sprintf("SHOW FIELD KEYS on \"%s\"", database)
 
-	// 执行查询
 	q := NewQuery(query, database, "")
 	resp, err := c.Query(q)
 	if err != nil {
@@ -174,7 +184,6 @@ func GetFieldKeys(c Client, database string) map[string]map[string]string {
 		return nil
 	}
 
-	// 处理查询结果
 	if resp.Error() != nil {
 		fmt.Printf("Error: %s\n", resp.Error().Error())
 		return nil
@@ -224,18 +233,12 @@ type MeasurementTagMap struct {
 
 // GetTagKV 获取所有表的tag的key和value
 func GetTagKV(c Client, database string) MeasurementTagMap {
-	// 构建查询语句
-	//query := fmt.Sprintf("SHOW FIELD KEYS on %s from %s", database, measurement)
 	queryK := fmt.Sprintf("SHOW tag KEYS on \"%s\"", database)
-
-	// 执行查询
 	q := NewQuery(queryK, database, "")
 	resp, err := c.Query(q)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	// 处理查询结果
 	if resp.Error() != nil {
 		log.Fatal(resp.Error().Error())
 	}

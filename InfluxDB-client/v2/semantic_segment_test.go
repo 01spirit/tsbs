@@ -127,7 +127,7 @@ func TestFieldsAndAggregation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meaName := MeasurementName(tt.queryString)
+			meaName := GetMetricName(tt.queryString)
 			sf, aggr := FieldsAndAggregation(tt.queryString, meaName)
 			if sf != tt.expected[0] {
 				t.Errorf("fields:%s", sf)
@@ -182,7 +182,7 @@ func TestPredicatesAndTagConditions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meaName := MeasurementName(tt.queryString)
+			meaName := GetMetricName(tt.queryString)
 			SP, tagConds := PredicatesAndTagConditions(tt.queryString, meaName, TagKV)
 
 			if strings.Compare(SP, tt.expected) != 0 {
@@ -300,7 +300,7 @@ func TestMeasurementName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			measurementName := MeasurementName(tt.queryString)
+			measurementName := GetMetricName(tt.queryString)
 
 			if measurementName != tt.expected {
 				t.Errorf("measurement:\t%s\n", measurementName)
@@ -367,7 +367,7 @@ func TestIntegratedSM(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			MyDB := "NOAA_water_database"
 			var TagKV = GetTagKV(c, MyDB)
-			measurement := MeasurementName(tt.queryString)
+			measurement := GetMetricName(tt.queryString)
 			_, tagConds := PredicatesAndTagConditions(tt.queryString, measurement, TagKV)
 			//fields, aggr := FieldsAndAggregation(queryString, measurement)
 			tags := GroupByTags(tt.queryString, measurement)
@@ -427,7 +427,7 @@ func TestGroupByTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meaName := MeasurementName(tt.queryString)
+			meaName := GetMetricName(tt.queryString)
 			tagValues := GroupByTags(tt.queryString, meaName)
 
 			for i, val := range tagValues {
@@ -536,7 +536,7 @@ func TestSeperateSM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			measurement := MeasurementName(tt.queryString)
+			measurement := GetMetricName(tt.queryString)
 			_, tagConds := PredicatesAndTagConditions(tt.queryString, measurement, TagKV)
 			tags := GroupByTags(tt.queryString, measurement)
 			sm := IntegratedSM(measurement, tagConds, tags)
@@ -884,6 +884,94 @@ func TestIoTSemanticSegment(t *testing.T) {
 				t.Errorf("samantic segment:\t%s", ss)
 				t.Errorf("expected:\t%s", tt.expected)
 			}
+		})
+	}
+}
+
+func TestNewGetSegment(t *testing.T) {
+	tests := []struct {
+		name        string
+		queryString string
+		expected    string
+	}{
+		{
+			name:        "1",
+			queryString: `SELECT mean(current_load),mean(fuel_state) FROM "diagnostics" WHERE ("name"='truck_0' or "name"='truck_1' or "name"='truck_12') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:10:00Z' GROUP BY "name",time(10m)`,
+			expected:    "",
+		},
+		{
+			name:        "2",
+			queryString: `SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE ("name"='truck_0' or "name"='truck_12') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:10:00Z' GROUP BY "name",time(10m)`,
+			expected:    "",
+		},
+		{
+			name:        "3",
+			queryString: `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:10:00Z' GROUP BY "name",time(10m)`,
+			expected:    "",
+		},
+		{
+			name:        "4",
+			queryString: `SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE ("name"='truck_0' or "name"='truck_1' or "name"='truck_2' or "name"='truck_10' or "name"='truck_12' or "name"='truck_22' or "name"='truck_32' or "name"='truck_62' or "name"='truck_92') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-02T00:00:00Z' GROUP BY "name",time(1h)`,
+			expected:    "",
+			// query template:  SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE (?) AND TIME >= '?' AND TIME < '?' GROUP BY "name",time(1h)
+			// start time:  1640995200
+			// end time:  1641081600
+			// tags:  [name=truck_0 name=truck_1 name=truck_10 name=truck_12 name=truck_2 name=truck_22 name=truck_32 name=truck_62 name=truck_92]
+			// partial segment:  #{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// fields:  velocity[float64],fuel_consumption[float64],grade[float64]
+			// metric:  readings
+			// star segment:  {(readings.*)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_0)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_1)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_10)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_12)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_2)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_22)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_32)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_62)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// single segment:  {(readings.name=truck_92)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+			// total segment:	{(readings.name=truck_0)(readings.name=truck_1)(readings.name=truck_10)(readings.name=truck_12)(readings.name=truck_2)(readings.name=truck_22)(readings.name=truck_32)(readings.name=truck_62)(readings.name=truck_92)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
+		},
+	}
+
+	urlString := "192.168.1.101:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queryTemplate, startTime, endTime, tags := GetQueryTemplate(tt.queryString)
+			fmt.Println("query template: ", queryTemplate)
+			fmt.Println("start time: ", startTime)
+			fmt.Println("end time: ", endTime)
+			fmt.Println("tags: ", tags)
+
+			//segment := GetSemanticSegment(tt.queryString)
+			//fmt.Println(segment)
+
+			partialSegment, fields, metric := GetPartialSegmentAndFields(tt.queryString)
+			fmt.Println("partial segment: ", partialSegment)
+			fmt.Println("fields: ", fields)
+			fmt.Println("metric: ", metric)
+
+			starSegment := GetStarSegment(metric, partialSegment)
+			fmt.Println("star segment: ", starSegment)
+
+			singleSegments := GetSingleSegment(metric, partialSegment, tags)
+			for _, segment := range singleSegments {
+				fmt.Println("single segment: ", segment)
+			}
+
+			totalSegment := GetTotalSegment(metric, tags, partialSegment)
+			fmt.Println("total segment: ", totalSegment)
+
+			//if strings.Compare(ss, tt.expected) != 0 {
+			//	t.Errorf("samantic segment:\t%s", ss)
+			//	t.Errorf("expected:\t%s", tt.expected)
+			//}
 		})
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	fatcache "github.com/bradfitz/gomemcache/memcache"
 	stscache "github.com/timescale/tsbs/InfluxDB-client/memcache"
 	"github.com/timescale/tsbs/InfluxDB-client/models"
 	"sync"
@@ -21,7 +20,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,36 +30,17 @@ type ContentEncoding string
 // 连接数据库
 var c, err = NewHTTPClient(HTTPConfig{
 	Addr: "http://192.168.1.103:8086",
-	//Addr: "http://10.170.48.244:8086",
-	//Addr: "http://localhost:8086",
 })
 
-//var cc, err2 = NewHTTPClient(HTTPConfig{
-//	Addr: "http://10.170.48.244:8086",
-//	//Addr: "http://localhost:8086",
-//})
-
-// 连接cache
-// var stscacheConn = stscache.New("10.170.41.179:11212")
 var stscacheConn = stscache.New("192.168.1.102:11211")
-
-//var stscacheConn = stscache.New("10.170.42.5:11211")
-
-//var stscacheConn = stscache.New("10.170.65.66:11212")
-
-//var stscacheConn = stscache.New("10.170.48.244:11214")
-
-var fatcacheConn = fatcache.New("192.168.1.101:11211")
-
-// 数据库中所有表的tag和field
-//var TagKV = GetTagKV(c, DB)
-//var Fields = GetFieldKeys(c, DB)
 
 var TagKV MeasurementTagMap
 var Fields map[string]map[string]string
 
-// var IOTTagKV = GetTagKV(c, IOTDB)
-// var IOTFields = GetFieldKeys(c, IOTDB)
+// 查询模版对应除 SM 之外的部分语义段
+var QueryTemplateToPartialSegment = make(map[string]string)
+var SegmentToMetric = make(map[string]string)
+
 var QueryTemplates = make(map[string]string) // 存放查询模版及其语义段；查询模板只替换了时间范围，语义段没变
 var SegmentToFields = make(map[string]string)
 var SeprateSegments = make(map[string][]string) // 完整语义段和单独语义段的映射
@@ -70,17 +49,13 @@ var UseCache = "db"
 
 var MaxThreadNum = 64
 
-// 结果转换成字节数组时string类型占用字节数
 const STRINGBYTELENGTH = 32
-
-// fatcache 设置存入的时间间隔		"1.5h"	"15m"
-var TimeSize = "30m"
 
 // 数据库名称
 var (
 	//MYDB = "NOAA_water_database"
 	TESTDB   = "test"
-	DB       = "iot"
+	DB       = "iot_small"
 	CPUDB    = "devops"
 	IOTDB    = "iot"
 	username = "root"
@@ -88,36 +63,6 @@ var (
 )
 
 var STsCacheURL string
-var FatcacheURL string
-
-// DB:	test	measurement:	cpu
-/*
-* 	field
- */
-//usage_guest
-//usage_guest_nice
-//usage_idle
-//usage_iowait
-//usage_irq
-//usage_nice
-//usage_softirq
-//usage_steal
-//usage_system
-//usage_user
-
-/*
-* 	tag
- */
-//arch [x64 x86]
-//datacenter [eu-central-1a us-west-2b us-west-2c]
-//hostname [host_0 host_1 host_2 host_3]
-//os [Ubuntu15.10 Ubuntu16.04LTS Ubuntu16.10]
-//rack [4 41 61 84]
-//region [eu-central-1 us-west-2]
-//service [18 2 4 6]
-//service_environment [production staging]
-//service_version [0 1]
-//team [CHI LON NYC]
 
 const (
 	DefaultEncoding ContentEncoding = ""
@@ -942,312 +887,6 @@ func (r *ChunkedResponse) Close() error {
 	return r.duplex.Close()
 }
 
-// TSCacheByteToValue TSCache
-// 把字节流转换成查询结果
-func TSCacheByteToValue(byteArray []byte) *Response {
-	/* 没有数据 */
-	if len(byteArray) == 0 {
-		return nil
-	}
-
-	data_len := make(map[string]int) // 每列的数据类型对应的字节长度
-	data_len = map[string]int{"int64": 8, "float64": 8, "string": 25, "bool": 1}
-
-	measurement_name := ""
-	cur_datatype := ""
-	cur_col := ""
-	tag_field := make([]string, 0)              // 返回的第一个参数，由 measurement_name, tag, field, datatype 连接成的字符串，直接从字节数组中转换出来，暂时不处理
-	field_total_length := make([]int64, 0)      // 返回的第二个参数，每列数据的总长度
-	datatypes := make([]string, 0)              // 包含在 tag_field 中的，每列的数据类型
-	columns := make([]string, 0)                // 列名
-	value_all_field := make([][]interface{}, 0) // 返回的第三个参数，所有列的所有数据
-	value_per_field := make([]interface{}, 0)   // 每列的所有数据
-	tags := make(map[string]string)             // 每张子表的所有 tag
-
-	index := 0               // byteArray 数组的索引，指示当前要转换的字节的位置
-	length := len(byteArray) // Get()获取的总字节数
-	var cur_tag_field string // 当前处理的一个 tag_field 字符串
-	var cur_field_len int64  // 当前列的数据总长度
-	var cur_data_len int     // 当前列的单个数据的长度
-
-	/* 转换 */
-	for index < length {
-		/* 结束转换 */
-		if index == length-2 { // 索引指向数组的最后两字节
-			if byteArray[index] == 13 && byteArray[index+1] == 10 { // "\r\n"，表示Get()返回的字节数组的末尾，结束转换		Get()除了返回查询数据之外，还会在数据末尾添加一个 "\r\n",如果读到这个组合，说明到达数组末尾
-				break
-			} else {
-				log.Fatal(errors.New("expect CRLF in the end of []byte"))
-			}
-		}
-
-		/* 第一个参数 tag_field */
-		if byteArray[index] == byte('(') { // 以 '(' 开始
-			tfStartIndex := index
-			for byteArray[index] != byte(' ') { // 以 ' ' 结束
-				index++
-			}
-			tfEndIndex := index
-			cur_tag_field = string(byteArray[tfStartIndex:tfEndIndex]) // 截取并转换成字符串
-			tag_field = append(tag_field, cur_tag_field)
-
-			/* 第二个参数 field_total_len */
-			index++                // 两个参数间由一个空格分隔，跳过空格
-			lenStartIndex := index // 索引指向 field length 的第一个字节
-			index += 8
-			lenEndIndex := index // 索引指向 field length 的最后一个字节
-			cur_field_len, err = ByteArrayToInt64(byteArray[lenStartIndex:lenEndIndex])
-			if err != nil {
-				log.Fatal(err)
-			}
-			field_total_length = append(field_total_length, cur_field_len)
-
-			/* 从 tag_field 中取出每列的数据类型 */
-			dtStartIndex := strings.Index(cur_tag_field, "[") + 1
-			dtEndIndex := len(cur_tag_field) - 1
-			cur_datatype = cur_tag_field[dtStartIndex:dtEndIndex]
-			datatypes = append(datatypes, cur_datatype)
-			// 每列的列名
-			colStartIndex := strings.LastIndex(cur_tag_field, ".") + 1
-			colEndIndex := dtStartIndex - 1
-			cur_col = cur_tag_field[colStartIndex:colEndIndex]
-			columns = append(columns, cur_col)
-		}
-
-		/* 每列的具体数据 */
-		cur_data_len = data_len[cur_datatype]        // 单个数据的长度
-		row_num := int(cur_field_len) / cur_data_len // 数据总行数
-		value_per_field = nil
-		for len(value_per_field) < row_num {
-			switch cur_datatype {
-			case "bool":
-				bStartIdx := index
-				index += 1 //	索引指向当前数据的后一个字节
-				bEndIdx := index
-				tmp, err := ByteArrayToBool(byteArray[bStartIdx:bEndIdx])
-				if err != nil {
-					log.Fatal(err)
-				}
-				value_per_field = append(value_per_field, tmp)
-				break
-			case "int64":
-				iStartIdx := index
-				index += 8 // 索引指向当前数据的后一个字节
-				iEndIdx := index
-				tmp, err := ByteArrayToInt64(byteArray[iStartIdx:iEndIdx])
-				if err != nil {
-					log.Fatal(err)
-				}
-				str := strconv.FormatInt(tmp, 10)
-				jNumber := json.Number(str) // int64 转换成 json.Number 类型	;Response中的数字类型只有json.Number	int64和float64都要转换成json.Number
-				value_per_field = append(value_per_field, jNumber)
-				break
-			case "float64":
-				fStartIdx := index
-				index += 8 // 索引指向当前数据的后一个字节
-				fEndIdx := index
-				tmp, err := ByteArrayToFloat64(byteArray[fStartIdx:fEndIdx])
-				if err != nil {
-					log.Fatal(err)
-				}
-				str := strconv.FormatFloat(tmp, 'g', -1, 64)
-				jNumber := json.Number(str) // 转换成json.Number
-				value_per_field = append(value_per_field, jNumber)
-				break
-			default: // string
-				sStartIdx := index
-				index += STRINGBYTELENGTH // 索引指向当前数据的后一个字节
-				sEndIdx := index
-				tmp := ByteArrayToString(byteArray[sStartIdx:sEndIdx])
-				value_per_field = append(value_per_field, tmp) // 存放一行数据中的每一列
-				break
-			}
-
-		}
-		value_all_field = append(value_all_field, value_per_field)
-	}
-
-	/* 还原表结构，构造成 Response 返回 */
-	modelsRows := make([]models.Row, 0)
-
-	// tag_field : (measurement.tag1=name1,tag2=name2).field_name[datatype]
-	// value_all_field [][]interface{} 插入
-	mnStartIndex := strings.Index(cur_tag_field, "(") + 1
-	mnEndIndex := strings.Index(cur_tag_field, ".")
-	measurement_name = cur_tag_field[mnStartIndex:mnEndIndex]
-
-	/* tags */
-	series_num := 0 // 子表数量
-	col_num := 0    // 每张表的列数
-	tag_str_map := make(map[string]int)
-	for i := range tag_field {
-		tagStartIndex := strings.Index(tag_field[i], ".") + 1
-		tagEndIndex := strings.Index(tag_field[i], ")")
-		tmp_tags := tag_field[i][tagStartIndex:tagEndIndex]
-		tag_str_map[tmp_tags]++
-	}
-	series_num = len(tag_str_map)
-	col_num = len(columns) / len(tag_str_map) // 每张子表的 tag_str 相同	，总列数 / tag_str 总数 即为每张表的列数
-
-	/* values */
-	valuess := make([][][]interface{}, 0)
-	values := make([][]interface{}, 0)
-	value := make([]interface{}, 0)
-	for i := 0; i < series_num; i++ { // 第 i 张子表
-		values = nil
-		for j := range value_all_field[i*col_num] { // 一张子表的数据行数
-			value = nil
-			for k := i * col_num; k < (i+1)*col_num; k++ {
-				value = append(value, value_all_field[k][j])
-			}
-			values = append(values, value)
-		}
-		valuess = append(valuess, values)
-	}
-
-	tag_str_arr := make([]string, 0)
-	for key := range tag_str_map {
-		tag_str_arr = append(tag_str_arr, key)
-	}
-	slices.Sort(tag_str_arr)
-
-	for i, key := range tag_str_arr {
-		split_tags := strings.Split(key, ",")
-		for _, tag := range split_tags {
-			eqIndex := strings.Index(tag, "=")
-			if eqIndex <= 0 {
-				break
-			}
-			k := tag[:eqIndex]
-			v := tag[eqIndex+1:]
-			tags[k] = v
-		}
-
-		tmpTags := make(map[string]string)
-		for key, value := range tags {
-			tmpTags[key] = value
-		}
-		/* 构造一个子表的结构 Series */
-		seriesTmp := Series{
-			Name:    measurement_name,
-			Tags:    tmpTags,
-			Columns: columns[:col_num],
-			Values:  valuess[i],
-			Partial: false,
-		}
-
-		/*  转换成 models.Row 数组 */
-		row := SeriesToRow(seriesTmp)
-		modelsRows = append(modelsRows, row)
-	}
-
-	/* 构造返回结果 */
-	result := Result{
-		StatementId: 0,
-		Series:      modelsRows,
-		Messages:    nil,
-		Err:         "",
-	}
-	resp := Response{
-		Results: []Result{result},
-		Err:     "",
-	}
-
-	return &resp
-}
-
-// TSCacheValueToByte 用于 TSCache， 按列存储的形式
-// 把查询结果转换成字节流
-func TSCacheValueToByte(resp *Response) []byte {
-	result := make([]byte, 0)
-
-	/* 结果为空 */
-	if ResponseIsEmpty(resp) {
-		return StringToByteArray("empty response")
-	}
-
-	//datatypes := GetDataTypeArrayFromResponse(resp)
-
-	/* 列名、数据长度、具体数据 */
-	tag_field, field_len, field_value := TSCacheParameter(resp)
-
-	// 子表数量、列的数量
-	//table_num := len(tag_field)
-	column_num := len(tag_field[0])
-
-	// 存入字节数组
-	for i := range field_value {
-		col_len, _ := Int64ToByteArray(field_len[i/column_num][i%column_num])
-		result = append(result, []byte(tag_field[i/column_num][i%column_num])...) // 列名
-		result = append(result, []byte(" ")...)                                   // 空格
-		result = append(result, col_len...)                                       // 数据长度
-
-		/* 数据 */
-		for j := range field_value[i] {
-			result = append(result, field_value[i][j]...)
-		}
-
-	}
-
-	return result
-}
-
-// TSCacheParameter 获取把查询结果转换成字节流所需的数据，包括 列名、每列数据的总长度、每列的具体数据
-func TSCacheParameter(resp *Response) ([][]string, [][]int64, [][][]byte) {
-	var tag_value []string     // 每张子表的所有 tag 的值连接成字符串
-	var tag_field [][]string   // 每张子表的多个列，每个列的列名和 tag 连接成字符串
-	var field_len [][]int64    // 每张子表的每个列的数据的长度
-	var field_value [][][]byte // 每张子表的每个列的数据的数组
-
-	if ResponseIsEmpty(resp) {
-		return nil, nil, nil
-	}
-
-	data_len := make(map[string]int) // 每列的数据类型对应的字节长度
-	data_len = map[string]int{"int64": 8, "float64": 8, "string": 25, "bool": 1}
-	datatype := GetDataTypeArrayFromResponse(resp) // 每一列的数据类型
-	tags := GetTagNameArr(resp)                    // 结果中的所有 tag 的名称
-	measurement_name := resp.Results[0].Series[0].Name
-	for r := range resp.Results {
-		for s := range resp.Results[r].Series { // 结果中的每张子表
-			// 一张子表的所有 tag 的值
-			tmp_tag_value := fmt.Sprintf("%s.", measurement_name)
-			for t, tag := range tags { // 一张子表的所有 tag 的值
-				tmp_tag_value += fmt.Sprintf("%s=%s,", tags[t], resp.Results[r].Series[s].Tags[tag])
-			}
-			tag_value = append(tag_value, tmp_tag_value[:len(tmp_tag_value)-1])
-
-			tfld := make([]string, 0)
-			fldl := make([]int64, 0)
-
-			row_num := len(resp.Results[r].Series[s].Values)   // 每张子表的数据行数
-			for c := range resp.Results[r].Series[s].Columns { // 每张子表的每个列
-				// 每列的列名连接成字符串
-				tmp_tag_field := ""
-				tmp_tag_field = fmt.Sprintf("(%s).%s[%s]", tag_value[s], resp.Results[r].Series[s].Columns[c], datatype[c])
-				tfld = append(tfld, tmp_tag_field)
-
-				// 每张子表的每个列的数据的总字节数
-				tmp_field_len := 0
-				tmp_field_len = data_len[datatype[c]] * row_num
-				fldl = append(fldl, int64(tmp_field_len))
-
-				// 每张子表的每个列的数据的数组
-				fldv := make([][]byte, 0)
-				for _, values := range resp.Results[r].Series[s].Values {
-					tmp_value_byte := InterfaceToByteArray(c, datatype[c], values[c])
-					fldv = append(fldv, tmp_value_byte)
-				}
-				field_value = append(field_value, fldv)
-			}
-			tag_field = append(tag_field, tfld)
-			field_len = append(field_len, fldl)
-		}
-	}
-
-	return tag_field, field_len, field_value
-}
-
 var CacheHash = make(map[string]int)
 
 //var CacheHashMtx sync.Mutex
@@ -1269,7 +908,7 @@ func GetCacheHashValue(fields string) int {
 	return hashValue
 }
 
-// IntegratedClient /* STsCache */
+// STsCacheClient /* STsCache */
 /*
 	1. 客户端接收查询语句
 	2. 客户端向 cache 系统查询，得到部分结果
@@ -1301,8 +940,7 @@ func InitStsConnsArr(urlArr []string) []*stscache.Client {
 
 var num = 0
 
-func IntegratedClient(conn Client, queryString string, workerNum int) (*Response, uint64, uint8) {
-	//log.Printf("thread number:%d\n", workerNum)
+func STsCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 
 	CacheNum := len(STsConnArr)
 
@@ -1313,137 +951,113 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 	byteLength := uint64(0)
 	hitKind := uint8(0)
 
-	/* 原始查询语句的时间范围 */
-	startTime, endTime := GetQueryTimeRange(queryString) // 当查询的时间只有一半时，另一个值为 -1; 当查询时间为 "=" 时，两值相等
-
 	/* 原始查询语句替换掉时间之后的的模版 */
-	queryTemplate := GetQueryTemplate(queryString) // 时间用 '?' 代替
+	queryTemplate, startTime, endTime, tags := GetQueryTemplate(queryString) // 时间用 '?' 代替
 
 	/* 从查询模版获取语义段，或构造语义段并存入查询模版 */
-	//fmt.Println("try client lock")
+
 	mtx.Lock()
-	//fmt.Printf("thread number:%d\n", workerNum)
-	//num++
-	//fmt.Println(num)
-	//fmt.Println("client lock")
-	semanticSegment := ""
+
+	partialSegment := ""
 	fields := ""
-	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
-
-		//semanticSegment = GetSemanticSegment(queryString)
-		semanticSegment, fields = GetSemanticSegmentAndFields(queryString)
-		//log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
-		/* 存入全局 map */
-
-		QueryTemplates[queryTemplate] = semanticSegment
-		SegmentToFields[semanticSegment] = fields
-
+	metric := ""
+	if ps, ok := QueryTemplateToPartialSegment[queryTemplate]; !ok {
+		partialSegment, fields, metric = GetPartialSegmentAndFields(queryString)
+		QueryTemplateToPartialSegment[queryTemplate] = partialSegment
+		SegmentToFields[partialSegment] = fields
+		SegmentToMetric[partialSegment] = metric
 	} else {
-		semanticSegment = ss
-		fields = SegmentToFields[semanticSegment]
+		partialSegment = ps
+		fields = SegmentToFields[partialSegment]
+		metric = SegmentToMetric[partialSegment]
 	}
-	//fmt.Printf("fields:\t%s\n", fields)
 
-	// 根据第一个 truck_num 决定所属的 cache
-	//startIndex := strings.Index(semanticSegment, "_")
-	//endIndex := strings.Index(semanticSegment, ")")
-	//truckNumber, err := strconv.Atoi(semanticSegment[startIndex+1 : endIndex])
-	//if err != nil {
-	//	log.Fatalf("error truck number : %s", semanticSegment[startIndex+1:endIndex])
+	// 用于 Get 的语义段
+	semanticSegment := GetTotalSegment(metric, tags, partialSegment)
+
+	// 用于 Set 的语义段
+	starSegment := GetStarSegment(metric, partialSegment)
+
+	//semanticSegment := ""
+	//fields := ""
+	//if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
+	//
+	//	//semanticSegment = GetSemanticSegment(queryString)
+	//	semanticSegment, fields = GetSemanticSegmentAndFields(queryString)
+	//	//log.Printf("ss:%d\t%s\n", len(semanticSegment), semanticSegment)
+	//	/* 存入全局 map */
+	//
+	//	QueryTemplates[queryTemplate] = semanticSegment
+	//	SegmentToFields[semanticSegment] = fields
+	//
+	//} else {
+	//	semanticSegment = ss
+	//	fields = SegmentToFields[semanticSegment]
 	//}
-	//CacheIndex := truckNumber / (100 / CacheNum)
+
+	//fmt.Printf("fields:\t%s\n", fields)
 
 	CacheIndex := GetCacheHashValue(fields)
 	fields = "time[int64]," + fields
-	datatype := GetDataTypeArrayFromSF(fields)
-	//	splitField := strings.Split(fields, ",")
+	datatypes := GetDataTypeArrayFromSF(fields)
 
-	//fmt.Printf("cache index:\t%d\n", CacheIndex)
-
-	//fmt.Println("client unlock")
 	mtx.Unlock()
 
 	/* 向 cache 查询数据 */
-	//values, _, err := stscacheConn.Get(semanticSegment, startTime, endTime)
-	//values, _, err := STsConnArr[workerNum%MaxThreadNum].Get(semanticSegment, startTime, endTime)
-	//values, _, err := STsConnArr[workerNum%CacheNum].Get(semanticSegment, startTime, endTime)
 	values, _, err := STsConnArr[CacheIndex].Get(semanticSegment, startTime, endTime)
-	byteLength += uint64(len(values))
 	if err != nil { // 缓存未命中
-		//log.Printf("Get fail: %v\n", err)
-
 		/* 向数据库查询全部数据，存入 cache */
 		q := NewQuery(queryString, DB, "s")
 		resp, err := conn.Query(q)
 		if err != nil {
-			log.Println(err)
+			log.Println(queryString)
 		}
-		//fmt.Println(resp.ToString())
 
 		if !ResponseIsEmpty(resp) {
-
-			//ss := GetSemanticSegment(queryString)
-			//st, et := GetResponseTimeRange(resp)
-			st, et := GetQueryTimeRange(queryString)
-			//if st == -1 || et == -1 {
-			//	log.Println("EMPTY.")
-			//	return
-			//}
 			numOfTab := GetNumOfTable(resp)
-			remainValues := ResponseToByteArray(resp, queryString)
-			//fmt.Println(semanticSegment)
-			//go func() {
-			/* 存入 cache */
-			//err = STsConnArr[workerNum%MaxThreadNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			//err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			//log.Printf("get miss Set : \tvalue length:%d\tthread:%d\n", len(remainValues), workerNum)
-			err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: st, Time_end: et, NumOfTables: numOfTab})
-			//log.Printf("set value length:%d\n", len(remainValues))
+
+			//remainValues := ResponseToByteArray(resp, queryString)
+			remainValues := ResponseToByteArrayWithParams(resp, datatypes, tags, metric, partialSegment)
+
+			err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: starSegment, Value: remainValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+
 			if err != nil {
-				//log.Fatalf("get miss Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainValues), workerNum, queryString)
-				//log.Printf("get miss Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainValues), workerNum, queryString)
 				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
 			} else {
 				//log.Printf("STORED.")
 			}
-			//}()
 
-		} else {
+		} else { // 查数据库为空
+
+			//num++
+			//fmt.Println("miss number: ", num)
+
 			// todo 对于数据库中没有的数据，向cache中插入空值
-			//seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
-			//emptyValues := make([]byte, 0)
-			//for _, ss := range seperateSemanticSegment {
-			//	zero, _ := Int64ToByteArray(int64(0))
-			//	emptyValues = append(emptyValues, []byte(ss)...)
-			//	emptyValues = append(emptyValues, []byte(" ")...)
-			//	emptyValues = append(emptyValues, zero...)
-			//}
-			//
-			//numOfTab := int64(len(seperateSemanticSegment))
-			//err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: emptyValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
-			//if err != nil {
-			//	log.Printf("set value length:%d\n", len(emptyValues))
-			//	log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, queryString)
-			//	//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
-			//} else {
-			//	log.Printf("STORED.")
-			//}
-			//log.Printf("database miss:%v\n", err)
+			singleSemanticSegment := GetSingleSegment(metric, partialSegment, tags)
+			emptyValues := make([]byte, 0)
+			for _, ss := range singleSemanticSegment {
+				zero, _ := Int64ToByteArray(int64(0))
+				emptyValues = append(emptyValues, []byte(ss)...)
+				emptyValues = append(emptyValues, []byte(" ")...)
+				emptyValues = append(emptyValues, zero...)
+			}
+
+			numOfTab := int64(len(singleSemanticSegment))
+			err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: starSegment, Value: emptyValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+			if err != nil {
+				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
+			} else {
+				//log.Printf("STORED.")
+			}
+
+			//fmt.Printf("\tdatabase miss 1:%s\n", queryString)
 		}
-		//} else if err != nil { // 异常
-		//	log.Fatalf("Error getting value: %v", err)
 
 		return resp, byteLength, hitKind
 
 	} else { // 缓存部分命中或完全命中
-
-		//log.Printf("get value length:%d\n", len(values))
-		//TotalGetByteLength += uint64(len(values))
-		//atomic.AddUint64(&TotalGetByteLength, uint64(len(values)))
-
 		/* 把查询结果从字节流转换成 Response 结构 */
-		// values为空时的处理、多线程的原子性
-		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponseWithDatatype(values, datatype)
+		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponseWithDatatype(values, datatypes)
 
 		if flagNum == 0 { // 全部命中
 			//log.Printf("GET.")
@@ -1455,64 +1069,71 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 			hitKind = 1
 
 			remainQueryString, minTime, maxTime := RemainQueryString(queryString, flagArr, timeRangeArr, tagArr)
-			//fmt.Printf("remain query string:\n%s\n", remainQueryString)
-			//fmt.Printf("remain min time:\n%d\t%s\n", minTime, TimeInt64ToString(minTime))
-			//fmt.Printf("remain max time:\n%d\t%s\n", maxTime, TimeInt64ToString(maxTime))
-			//
-			//for i := 0; i < len(flagArr); i++ {
-			//	fmt.Printf("number:%d:\tflag:%d\ttime range:%d-%d\ttag:%s:%s\n", i, flagArr[i], timeRangeArr[i][0], timeRangeArr[i][1], tagArr[i][0], tagArr[i][1])
-			//}
 
-			// todo 太小的剩余查询区间直接略过
+			// tagArr 是要查询的所有 tag ，remainTags 是部分命中的 tag
+			remainTags := make([]string, 0)
+			for i, tag := range tagArr {
+				if flagArr[i] == 1 {
+					remainTags = append(remainTags, fmt.Sprintf("%s=%s", tag[0], tag[1]))
+				}
+
+			}
+			//fmt.Println("\t", remainQueryString)
+
+			// 太小的剩余查询区间直接略过
 			if maxTime-minTime <= int64(time.Minute.Seconds()) {
-				//log.Printf("GET.")
 				hitKind = 2
-				//log.Printf("bytes get:%d\n", len(values))
+
+				//fmt.Printf("\tremain resp too small 2:%s\n", queryString)
+
 				return convertedResponse, byteLength, hitKind
 			}
 
 			remainQuery := NewQuery(remainQueryString, DB, "s")
 			remainResp, err := conn.Query(remainQuery)
 			if err != nil {
-				log.Println(err)
+				log.Println(remainQueryString)
 			}
 
+			//fmt.Println("\tremain resp:\n", remainResp.ToString())
+
+			// 查数据库为空
 			if ResponseIsEmpty(remainResp) {
 				hitKind = 2
+
+				//num++
+				//fmt.Println("miss number: ", num)
 				// todo 对于数据库中没有的数据，向cache中插入空值
-				//seperateSemanticSegment := GetSeperateSemanticSegment(queryString)
-				//emptyValues := make([]byte, 0)
-				//for _, ss := range seperateSemanticSegment {
-				//	zero, _ := Int64ToByteArray(int64(0))
-				//	emptyValues = append(emptyValues, []byte(ss)...)
-				//	emptyValues = append(emptyValues, []byte(" ")...)
-				//	emptyValues = append(emptyValues, zero...)
-				//}
-				//
-				//numOfTab := int64(len(seperateSemanticSegment))
-				//err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{Key: semanticSegment, Value: emptyValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
-				//if err != nil {
-				//	log.Printf("set value length:%d\n", len(emptyValues))
-				//	log.Fatalf("Set fail: %v\nQUERY STRING:\t%s\n", err, queryString)
-				//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
-				//} else {
-				//	log.Printf("STORED.")
-				//}
-				//log.Printf("database miss:%v\n", err)
+
+				singleSemanticSegment := GetSingleSegment(metric, partialSegment, remainTags)
+				emptyValues := make([]byte, 0)
+				for _, ss := range singleSemanticSegment {
+					zero, _ := Int64ToByteArray(int64(0))
+					emptyValues = append(emptyValues, []byte(ss)...)
+					emptyValues = append(emptyValues, []byte(" ")...)
+					emptyValues = append(emptyValues, zero...)
+				}
+
+				numOfTab := int64(len(singleSemanticSegment))
+				err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: starSegment, Value: emptyValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+				if err != nil {
+					//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
+				} else {
+					//log.Printf("STORED.")
+				}
+
+				//fmt.Printf("\tdatabase miss 2:%s\n", remainQueryString)
+
 				return convertedResponse, byteLength, hitKind
 			}
-			remainByteArr := ResponseToByteArray(remainResp, queryString)
-			numOfTableR := len(remainResp.Results[0].Series)
-			//err = STsConnArr[workerNum%CacheNum].Set(&stscache.Item{
-			//	Key:         semanticSegment,
-			//	Value:       remainByteArr,
-			//	Time_start:  minTime,
-			//	Time_end:    maxTime,
-			//	NumOfTables: int64(numOfTableR),
-			//})
-			//log.Printf("partial get Set : \tvalue length:%d\tthread:%d\n", len(remainByteArr), workerNum)
+
+			//remainByteArr := ResponseToByteArray(remainResp, queryString)
+			remainByteArr := RemainResponseToByteArrayWithParams(remainResp, datatypes, remainTags, metric, partialSegment)
+
+			numOfTableR := len(remainResp.Results)
+
 			err = STsConnArr[CacheIndex].Set(&stscache.Item{
-				Key:         semanticSegment,
+				Key:         starSegment,
 				Value:       remainByteArr,
 				Time_start:  minTime,
 				Time_end:    maxTime,
@@ -1520,22 +1141,16 @@ func IntegratedClient(conn Client, queryString string, workerNum int) (*Response
 			})
 
 			if err != nil {
-				//log.Fatalf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
 				//log.Printf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
 			} else {
-				//log.Println("STORED.")
 				//log.Printf("bytes set:%d\n", len(remainByteArr))
 			}
 
-			// todo 剩余结果合并
-			//totalResp := Merge("1h", remainResp, convertedResponse)
-
-			totalResp := MergeRes(remainResp, convertedResponse)
-
-			byteLength += uint64(len(remainByteArr))
+			// 剩余结果合并
+			//totalResp := MergeResponse(remainResp, convertedResponse)
+			totalResp := MergeRemainResponse(remainResp, convertedResponse)
 
 			return totalResp, byteLength, hitKind
-			//return convertedResponse, byteLength, hitKind
 		}
 
 	}

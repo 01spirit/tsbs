@@ -10,6 +10,92 @@ import (
 	"strings"
 )
 
+func TSCacheResponseToByteArrayWithParams(resp *Response, queryString string, datatypes []string, tags []string, metric string, partialSegment string) []byte {
+	columnNum := 0 // 列的数量
+
+	/* 结果为空 */
+	if ResponseIsEmpty(resp) {
+		return StringToByteArray("empty response")
+	}
+
+	//mtx.Lock()
+
+	columnNum = len(datatypes)
+	singleSegments := GetSingleSegment(metric, partialSegment, tags)
+
+	//mtx.Unlock()
+
+	result := make([]byte, 0)
+	columnBytes := make([][]byte, columnNum) // 分别存储每列的所有字节，包括时间戳和一个field
+
+	// i : 子表序号
+	for i, series := range resp.Results[0].Series {
+		// 子表数据行数
+		rowNums := len(series.Values)
+		// 时间戳字节数组
+		timestampByteArray := make([][]byte, 0)
+		for _, value := range series.Values {
+			datatype := "int64"
+			tmpBytes := InterfaceToByteArray(0, datatype, value[0])
+			timestampByteArray = append(timestampByteArray, tmpBytes)
+		}
+
+		columnBytes = make([][]byte, columnNum)
+		// j : 行序号
+		for j, value := range series.Values {
+			// k : 列序号
+			for k, val := range value {
+				if k == 0 {
+					continue
+				}
+				columnBytes[k-1] = append(columnBytes[k-1], timestampByteArray[j]...)
+				tmpBytes := InterfaceToByteArray(k, datatypes[k], val)
+				columnBytes[k-1] = append(columnBytes[k-1], tmpBytes...)
+			}
+		}
+
+		for j := range series.Columns {
+			if j == 0 {
+				continue
+			}
+			// field 数据类型和每行字节数（算上时间戳和一个field）
+			datatype := datatypes[j]
+			bytesPerLine := 8
+			switch datatype {
+			case "bool":
+				bytesPerLine += 1
+				break
+			case "int64":
+				bytesPerLine += 8
+				break
+			case "float64":
+				bytesPerLine += 8
+				break
+			case "string":
+				bytesPerLine += STRINGBYTELENGTH
+				break
+			default:
+				bytesPerLine += 8
+				break
+			}
+			// 该列总字节数，包括时间戳和一个field
+			totalByteLength, err := Int64ToByteArray(int64(bytesPerLine * rowNums))
+			if err != nil {
+				log.Fatalf("TSCache ResponseToByteArray:convert bytesPerLine to bytes fail:%v", err)
+			}
+
+			// 单列共用子表语义段
+			result = append(result, []byte(singleSegments[i])...)
+			result = append(result, []byte(" ")...)
+			result = append(result, totalByteLength...)
+
+			// 一列的数据（时间戳和一个field）
+			result = append(result, columnBytes[j-1]...)
+		}
+	}
+	return result
+}
+
 func TSCacheResponseToByteArray(resp *Response, queryString string) []byte {
 	columnNum := 0 // 列的数量
 
@@ -27,7 +113,7 @@ func TSCacheResponseToByteArray(resp *Response, queryString string) []byte {
 	// 语义段和数据类型，存为全局变量
 	semanticSegment := ""
 	fields := "" // eg: elevation[float64]
-	queryTemplate := GetQueryTemplate(queryString)
+	queryTemplate, _, _, _ := GetQueryTemplate(queryString)
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 		semanticSegment, fields = GetSemanticSegmentAndFields(queryString)
 		QueryTemplates[queryTemplate] = semanticSegment

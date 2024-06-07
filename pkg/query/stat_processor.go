@@ -190,7 +190,7 @@ func (sp *defaultStatProcessor) process(workers uint) {
 			//	intervalBandWidth,
 			//	overallBandWidth,
 			//)
-			_, err = fmt.Fprintf(os.Stderr, "\tInterval fully get number: %d \t\t Overall fully get number: %d\n",
+			_, err = fmt.Fprintf(os.Stderr, "\tInterval fully get number: %d \t\t\t Overall fully get number: %d\n",
 				intervalFullyGetNum,
 				overallFullyGetNum,
 			)

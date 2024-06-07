@@ -116,7 +116,53 @@ func Merge(precision string, resps ...*Response) []*Response {
 	return results
 }
 
-func MergeRes(resp1, resp2 *Response) *Response {
+func MergeRemainResponse(remainResp, convResp *Response) *Response {
+
+	if ResponseIsEmpty(remainResp) {
+		return convResp
+	}
+	if ResponseIsEmpty(convResp) {
+		return remainResp
+	}
+
+	seriesArr := make([]models.Row, 0)
+
+	index1 := 0
+	index2 := 0
+	for index1 < len(remainResp.Results) && index2 < len(convResp.Results[0].Series) {
+		tag1 := TagsMapToString(remainResp.Results[index1].Series[0].Tags)
+		tag2 := TagsMapToString(convResp.Results[0].Series[index2].Tags)
+
+		cmp := strings.Compare(tag1, tag2)
+		if cmp == -1 {
+			seriesArr = append(seriesArr, remainResp.Results[index1].Series[0])
+			index1++
+		} else if cmp == 1 {
+			seriesArr = append(seriesArr, convResp.Results[0].Series[index2])
+			index2++
+		} else {
+			seriesArr = append(seriesArr, mergeSeries(remainResp.Results[index1].Series[0], convResp.Results[0].Series[index2]))
+			index1++
+			index2++
+		}
+	}
+
+	for index1 < len(remainResp.Results) {
+		seriesArr = append(seriesArr, remainResp.Results[index1].Series[0])
+		index1++
+	}
+
+	for index2 < len(convResp.Results[0].Series) {
+		seriesArr = append(seriesArr, convResp.Results[0].Series[index2])
+		index2++
+	}
+
+	convResp.Results[0].Series = seriesArr
+
+	return convResp
+}
+
+func MergeResponse(resp1, resp2 *Response) *Response {
 	//var respTmp *Response
 	//respTmp.Results[0].Series = make([]models.Row, 0)
 
@@ -315,9 +361,6 @@ func TagsMapToString(tagsMap map[string]string) string {
 	for _, s := range tagKeyArr {
 		str += fmt.Sprintf("%s=%s ", s, tagsMap[s])
 	}
-
-	/* 去掉末尾的空格，好像无所谓 */
-	//str = str[:len(str)-1]
 
 	return str
 }

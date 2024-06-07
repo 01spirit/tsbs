@@ -67,6 +67,119 @@ func (resp *Response) ToString() string {
 	return result
 }
 
+func RemainResponseToByteArrayWithParams(resp *Response, datatypes []string, tags []string, metric string, partialSegment string) []byte {
+	byteArray := make([]byte, 0)
+
+	/* 结果为空 */
+	if ResponseIsEmpty(resp) {
+		return StringToByteArray("empty response")
+	}
+
+	/* 每张表单独的语义段 */
+	//singleSegments := GetSingleSegment(metric, partialSegment, tags)
+
+	/* 每行数据的字节数 */
+	bytesPerLine := BytesPerLine(datatypes)
+
+	index := 0
+	for _, result := range resp.Results {
+		numOfValues := len(result.Series[0].Values)                              // 表中数据行数
+		bytesPerSeries, _ := Int64ToByteArray(int64(bytesPerLine * numOfValues)) // 一张表的数据的总字节数：每行字节数 * 行数
+
+		singleSegment := ""
+		// 找到空表，一起传入 cache	tags 是查询的部分命中的 tag，实际上可能没查到数据
+		for key, value := range result.Series[0].Tags {
+			singleSegment = fmt.Sprintf("{(%s.%s=%s)}%s", metric, key, value, partialSegment)
+			startIndex := strings.Index(tags[index], "=")
+			for index < len(tags) {
+				if !strings.EqualFold(value, tags[index][startIndex+1:]) {
+					emptySingleSegment := fmt.Sprintf("{(%s.%s)}%s", metric, tags[index], partialSegment)
+					zero, _ := Int64ToByteArray(int64(0))
+					byteArray = append(byteArray, []byte(emptySingleSegment)...)
+					byteArray = append(byteArray, []byte(" ")...)
+					byteArray = append(byteArray, zero...)
+
+					index++
+				} else {
+					index++
+					break
+				}
+			}
+			break
+		}
+
+		/* 存入一张表的 semantic segment 和表内所有数据的总字节数 */
+		byteArray = append(byteArray, []byte(singleSegment)...)
+		byteArray = append(byteArray, []byte(" ")...)
+		byteArray = append(byteArray, bytesPerSeries...)
+
+		/* 数据转换成字节数组，存入 */
+		for _, v := range result.Series[0].Values {
+			for j, vv := range v {
+				datatype := datatypes[j]
+				tmpBytes := InterfaceToByteArray(j, datatype, vv)
+				byteArray = append(byteArray, tmpBytes...)
+
+			}
+		}
+	}
+
+	for index < len(tags) {
+
+		emptySingleSegment := fmt.Sprintf("{(%s.%s)}%s", metric, tags[index], partialSegment)
+		zero, _ := Int64ToByteArray(int64(0))
+		byteArray = append(byteArray, []byte(emptySingleSegment)...)
+		byteArray = append(byteArray, []byte(" ")...)
+		byteArray = append(byteArray, zero...)
+
+		index++
+
+	}
+
+	return byteArray
+}
+
+func ResponseToByteArrayWithParams(resp *Response, datatypes []string, tags []string, metric string, partialSegment string) []byte {
+	result := make([]byte, 0)
+
+	/* 结果为空 */
+	if ResponseIsEmpty(resp) {
+		return StringToByteArray("empty response")
+	}
+
+	//mtx.Lock()
+
+	/* 每张表单独的语义段 */
+	singleSegments := GetSingleSegment(metric, partialSegment, tags)
+
+	//mtx.Unlock()
+
+	/* 每行数据的字节数 */
+	bytesPerLine := BytesPerLine(datatypes)
+
+	for i, s := range resp.Results[0].Series {
+		numOfValues := len(s.Values)                                             // 表中数据行数
+		bytesPerSeries, _ := Int64ToByteArray(int64(bytesPerLine * numOfValues)) // 一张表的数据的总字节数：每行字节数 * 行数
+
+		/* 存入一张表的 semantic segment 和表内所有数据的总字节数 */
+		result = append(result, []byte(singleSegments[i])...)
+		result = append(result, []byte(" ")...)
+		result = append(result, bytesPerSeries...)
+
+		/* 数据转换成字节数组，存入 */
+		for _, v := range s.Values {
+			for j, vv := range v {
+				datatype := datatypes[j]
+				tmpBytes := InterfaceToByteArray(j, datatype, vv)
+				result = append(result, tmpBytes...)
+
+			}
+		}
+	}
+
+	return result
+}
+
 func ResponseToByteArray(resp *Response, queryString string) []byte {
 	result := make([]byte, 0)
 
@@ -85,7 +198,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 
 	semanticSegment := ""
 	fields := ""
-	queryTemplate := GetQueryTemplate(queryString)
+	queryTemplate, _, _, _ := GetQueryTemplate(queryString)
 	if ss, ok := QueryTemplates[queryTemplate]; !ok { // 查询模版中不存在该查询
 
 		//semanticSegment = GetSemanticSegment(queryString)
@@ -165,58 +278,7 @@ func ResponseToByteArray(resp *Response, queryString string) []byte {
 	return result
 }
 
-// RemainQueryString 根据 cache 返回结果中的时间范围构造一个剩余查询语句
-func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int64, tagArr [][]string) (string, int64, int64) {
-	if len(flagArr) == 0 || len(timeRangeArr) == 0 || len(tagArr) == 0 {
-		return "", 0, 0
-	}
-
-	var maxTime int64 = 0
-	var minTime int64 = math.MaxInt64
-	result := ""
-	tagName := tagArr[0][0]
-	matchStr := `(?i)(.+)WHERE.+`
-	conditionExpr := regexp.MustCompile(matchStr)
-	if ok, _ := regexp.MatchString(matchStr, queryString); !ok {
-		return "", 0, 0
-	}
-	condExprMatch := conditionExpr.FindStringSubmatch(queryString)
-	selectExpr := condExprMatch[1]
-
-	conditions := make([]string, 0)
-	for i := 0; i < len(flagArr); i++ {
-		if flagArr[i] == 1 {
-			if minTime > timeRangeArr[i][0] {
-				minTime = timeRangeArr[i][0]
-			}
-			if maxTime < timeRangeArr[i][1] {
-				maxTime = timeRangeArr[i][1]
-			}
-			tmpCondition := ""
-			startTime := TimeInt64ToString(timeRangeArr[i][0])
-			endTime := TimeInt64ToString(timeRangeArr[i][1])
-			key := tagArr[i][0]
-			val := tagArr[i][1]
-			if val == "null" {
-				val = ""
-			}
-			tmpCondition = fmt.Sprintf("(\"%s\"='%s' AND TIME >= '%s' AND TIME < '%s')", key, val, startTime, endTime)
-			conditions = append(conditions, tmpCondition)
-		}
-	}
-	remainConditions := strings.Join(conditions, " OR ")
-
-	result = fmt.Sprintf("%sWHERE %s GROUP BY \"%s\"", selectExpr, remainConditions, tagName)
-
-	return result, minTime, maxTime
-}
-
-/* todo	由字节数组转换成结果类型时，在查询语句的谓词中出现的tag不应该被添加到结果类型的 Tags 中，Tags中只有 GROUP BY tag：如何区分 谓词的tag 和 GROUP BY tag
- * 在生成语义段的过程中，关于tag的谓词会被添加到SM中，而不是留在SP；（用作为全局变量的TagKV（当前数据库的所有tag及其值）判断谓词是否是tag）
- * GROUP BY tag 会和 tag 谓词一起出现在SM中
- * 如何区分两种tag：当前条件下没办法，但是可以通过调整查询语句避免这一问题：把出现在 WHRER 中的 tag 也写进 GROUP BY，让转换前后的结果中都存在多余的谓词 tag
- */
-// 字节数组转换成结果类型
+// ByteArrayToResponseWithDatatype 字节数组转换成结果类型
 func ByteArrayToResponseWithDatatype(byteArray []byte, datatypes []string) (*Response, int, []uint8, [][]int64, [][]string) {
 
 	/* 没有数据 */
@@ -327,18 +389,6 @@ func ByteArrayToResponseWithDatatype(byteArray []byte, datatypes []string) (*Res
 			/* 如果SCHEMA和数据之间不需要换行，把这一行注释掉 */
 			//index += 2 // 索引指向换行符之后的第一个字节，开始读具体数据
 		}
-
-		/* 从 curSeg 取出包含每列的数据类型的字符串sf,获取数据类型数组 */
-		// 所有数据和数据类型都存放在数组中，位置是对应的
-		//sf := "time[int64]," // sf中去掉了time，需要再添上time，让field数量和列数对应
-		//messages := strings.Split(curSeg, "#")
-		//if len(messages) > 1 {
-		//	//fmt.Printf("message length:%d message[1]:%s\n", len(messages), messages[1])
-		//} else {
-		//	fmt.Printf("curSeg:%s\n", curSeg)
-		//}
-		//sf += messages[1][1 : len(messages[1])-1] // 去掉大括号，包含列名和数据类型的字符串
-		//datatypes := GetDataTypeArrayFromSF(sf)   // 每列的数据类型
 
 		/* 根据数据类型转换每行数据*/
 		bytesPerLine := BytesPerLine(datatypes) // 每行字节数
@@ -769,6 +819,63 @@ func ByteArrayToResponse(byteArray []byte) (*Response, int, []uint8, [][]int64, 
 	}
 
 	return &resp, flagNum, flagArr, timeRangeArr, tagArr
+}
+
+// RemainQueryString 根据 cache 返回结果中的时间范围构造一个剩余查询语句
+func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int64, tagArr [][]string) (string, int64, int64) {
+	if len(flagArr) == 0 || len(timeRangeArr) == 0 || len(tagArr) == 0 {
+		return "", 0, 0
+	}
+
+	var maxTime int64 = 0
+	var minTime int64 = math.MaxInt64
+
+	// select 语句
+
+	tagName := tagArr[0][0]
+	matchStr := `(?i)(.+)WHERE.+`
+	conditionExpr := regexp.MustCompile(matchStr)
+	if ok, _ := regexp.MatchString(matchStr, queryString); !ok {
+		return "", 0, 0
+	}
+	condExprMatch := conditionExpr.FindStringSubmatch(queryString)
+	selectExpr := condExprMatch[1]
+
+	// group by time()
+	matchStr = `(?i)GROUP BY .+(time\(.+\))`
+	conditionExpr = regexp.MustCompile(matchStr)
+	if ok, _ := regexp.MatchString(matchStr, queryString); !ok {
+		return "", 0, 0
+	}
+	condExprMatch = conditionExpr.FindStringSubmatch(queryString)
+	AggrExpr := condExprMatch[1]
+
+	selects := make([]string, 0)
+	for i := 0; i < len(flagArr); i++ {
+		if flagArr[i] == 1 {
+			if minTime > timeRangeArr[i][0] {
+				minTime = timeRangeArr[i][0]
+			}
+			if maxTime < timeRangeArr[i][1] {
+				maxTime = timeRangeArr[i][1]
+			}
+			tmpCondition := ""
+			startTime := TimeInt64ToString(timeRangeArr[i][0])
+			endTime := TimeInt64ToString(timeRangeArr[i][1])
+
+			//tmpCondition = fmt.Sprintf("(\"%s\"='%s' AND TIME >= '%s' AND TIME < '%s')", key, val, startTime, endTime)
+			tmpCondition = fmt.Sprintf("%sWHERE (\"%s\"='%s') AND TIME >= '%s' AND TIME < '%s' GROUP BY \"%s\",%s", selectExpr, tagArr[i][0], tagArr[i][1], startTime, endTime, tagName, AggrExpr)
+			//fmt.Println(tmpCondition)
+
+			selects = append(selects, tmpCondition)
+		}
+	}
+	remainQuerys := strings.Join(selects, ";")
+	//fmt.Println(remainQuerys)
+
+	//result = fmt.Sprintf("%sWHERE %s GROUP BY \"%s\",%s", selectExpr, remainConditions, tagName, AggrExpr)
+
+	return remainQuerys, minTime, maxTime
 }
 
 // InterfaceToByteArray 把查询结果的 interface{} 类型转换为 []byte

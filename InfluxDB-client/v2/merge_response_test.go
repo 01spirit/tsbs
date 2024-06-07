@@ -378,13 +378,13 @@ func TestMergeContainedResultTable(t *testing.T) {
 	fmt.Println(resp3.ToString())
 
 	//bigResp := Merge("1h", resp1, resp3)
-	bigResp := MergeRes(resp1, resp3)
+	bigResp := MergeResponse(resp1, resp3)
 	fmt.Printf("big resp :\n")
 	fmt.Println(bigResp.ToString())
 
 	//containedResp := MergeContainedResultTable(bigResp[0], resp2)
 	//containedResp := Merge("1h", bigResp[0], resp2)
-	containedResp := MergeRes(bigResp, resp2)
+	containedResp := MergeResponse(bigResp, resp2)
 	//containedResp := Merge("1h", resp1, resp2)
 	fmt.Printf("contained Resp :\n")
 	fmt.Println(containedResp.ToString())
