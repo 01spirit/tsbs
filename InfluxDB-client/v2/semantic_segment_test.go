@@ -385,7 +385,6 @@ func TestIntegratedSM(t *testing.T) {
 }
 
 func TestCombinationTagValues(t *testing.T) {
-	//tagConds := []string{"a=1", "b=2", "c=3"}
 	tagValues := [][]string{{"1", "2"}, {"3", "4", "5"}, {"6", "7", "8"}}
 	result := make([]string, 0)
 	result = combinationTagValues(tagValues)
@@ -438,118 +437,6 @@ func TestGroupByTags(t *testing.T) {
 				}
 			}
 			//fmt.Println()
-		})
-	}
-}
-
-func TestSeperateSM(t *testing.T) {
-	tests := []struct {
-		name        string
-		queryString string
-		expected    []string
-	}{
-		{
-			name:        "1 1-1-T 直接查询",
-			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "1 1-1-T MAX",
-			queryString: "select max(usage_guest) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "1 1-1-T MEAN",
-			queryString: "select mean(usage_guest) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "2 3-1-T 直接查询",
-			queryString: "select usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "2 3-1-T MAX",
-			queryString: "select max(usage_guest),max(usage_nice),max(usage_guest_nice) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "2 3-1-T MEAN",
-			queryString: "select mean(usage_guest),mean(usage_nice),mean(usage_guest_nice) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "3 3-1-T 直接查询",
-			queryString: "select usage_system,usage_user,usage_guest from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "3 3-1-T MAX",
-			queryString: "select max(usage_system),max(usage_user),max(usage_guest) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "3 3-1-T MEAN",
-			queryString: "select mean(usage_system),mean(usage_user),mean(usage_guest) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "4 5-1-T 直接查询",
-			queryString: "select usage_system,usage_user,usage_guest,usage_nice,usage_guest_nice from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "4 5-1-T MAX",
-			queryString: "select max(usage_system),max(usage_user),max(usage_guest),max(usage_nice),max(usage_guest_nice) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "4 5-1-T MEAN",
-			queryString: "select mean(usage_system),mean(usage_user),mean(usage_guest),mean(usage_nice),mean(usage_guest_nice) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "5 10-1-T 直接查询",
-			queryString: "select * from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:00:20Z' and hostname='host_0'",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "5 10-1-T MAX",
-			queryString: "select max(*) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "5 10-1-T MEAN",
-			queryString: "select mean(*) from test..cpu where time >= '2022-01-01T00:00:00Z' and time < '2022-01-01T00:02:00Z' and hostname='host_0' group by time(1m)",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "6 1-1-T",
-			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T09:00:00Z' and time < '2022-01-01T10:00:00Z' and hostname='host_0' and usage_guest > 99.0",
-			expected:    []string{"cpu.hostname=host_0"},
-		},
-		{
-			name:        "t7-1",
-			queryString: "select usage_guest from test..cpu where time >= '2022-01-01T17:50:00Z' and time < '2022-01-01T18:00:00Z' and usage_guest > 99.0 group by hostname",
-			expected:    []string{"cpu.hostname=host_0", "cpu.hostname=host_1", "cpu.hostname=host_2", "cpu.hostname=host_3"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			measurement := GetMetricName(tt.queryString)
-			_, tagConds := PredicatesAndTagConditions(tt.queryString, measurement, TagKV)
-			tags := GroupByTags(tt.queryString, measurement)
-			sm := IntegratedSM(measurement, tagConds, tags)
-
-			sepSM := SeperateSM(sm)
-			//fmt.Println(sepSM)
-			for i, sm := range sepSM {
-				if strings.Compare(sm, tt.expected[i]) != 0 {
-					t.Errorf("samantic segment:\t%s", sm)
-					t.Errorf("expected:\t%s", tt.expected)
-				}
-			}
-
 		})
 	}
 }

@@ -72,11 +72,9 @@ func RemainResponseToByteArrayWithParams(resp *Response, datatypes []string, tag
 
 	/* 结果为空 */
 	if ResponseIsEmpty(resp) {
-		return StringToByteArray("empty response")
+		//return StringToByteArray("empty response")
+		return nil
 	}
-
-	/* 每张表单独的语义段 */
-	//singleSegments := GetSingleSegment(metric, partialSegment, tags)
 
 	/* 每行数据的字节数 */
 	bytesPerLine := BytesPerLine(datatypes)
@@ -144,7 +142,8 @@ func ResponseToByteArrayWithParams(resp *Response, datatypes []string, tags []st
 
 	/* 结果为空 */
 	if ResponseIsEmpty(resp) {
-		return StringToByteArray("empty response")
+		//return StringToByteArray("empty response")
+		return nil
 	}
 
 	//mtx.Lock()

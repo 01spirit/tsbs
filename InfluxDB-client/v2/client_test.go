@@ -1602,3 +1602,215 @@ func TestSTsCacheClient2(t *testing.T) {
 	}
 
 }
+
+func TestSTsCacheClient3(t *testing.T) {
+	querySet1 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:20:00Z' GROUP BY "name",time(10m)`
+	querySet2 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_50') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+	querySet3 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1') AND TIME >= '2022-01-01T00:40:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+
+	queryGet := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_medium"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_medium")
+	Fields = GetFieldKeys(c, "iot_medium")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	query1 := NewQuery(querySet1, "iot_medium", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp1:\n", resp1.ToString())
+	}
+	//values1 := ResponseToByteArray(resp1, querySet1)
+	numOfTab1 := GetNumOfTable(resp1)
+
+	partialSegment := ""
+	fields := ""
+	metric := ""
+	queryTemplate1, startTime1, endTime1, tags1 := GetQueryTemplate(querySet1)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet1)
+	QueryTemplateToPartialSegment[queryTemplate1] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes1 := GetDataTypeArrayFromSF(fields)
+
+	values1 := ResponseToByteArrayWithParams(resp1, datatypes1, tags1, metric, partialSegment)
+
+	// 用于 Get 的语义段
+	//semanticSegment := GetTotalSegment(metric, tags, partialSegment)
+	// 用于 Set 的语义段
+	starSegment := GetStarSegment(metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values1, Time_start: startTime1, Time_end: endTime1, NumOfTables: numOfTab1})
+
+	query2 := NewQuery(querySet2, "iot_medium", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp2:\n", resp2.ToString())
+	}
+	//values2 := ResponseToByteArray(resp2, querySet2)
+	numOfTab2 := GetNumOfTable(resp2)
+
+	queryTemplate2, startTime2, endTime2, tags2 := GetQueryTemplate(querySet2)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet2)
+	QueryTemplateToPartialSegment[queryTemplate2] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes2 := GetDataTypeArrayFromSF(fields)
+
+	values2 := ResponseToByteArrayWithParams(resp2, datatypes2, tags2, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values2, Time_start: startTime2, Time_end: endTime2, NumOfTables: numOfTab2})
+
+	query3 := NewQuery(querySet3, "iot_medium", "s")
+	resp3, err := dbConn.Query(query3)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp3:\n", resp3.ToString())
+	}
+	//values3 := ResponseToByteArray(resp3, querySet3)
+	numOfTab3 := GetNumOfTable(resp3)
+
+	queryTemplate3, startTime3, endTime3, tags3 := GetQueryTemplate(querySet3)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet3)
+	QueryTemplateToPartialSegment[queryTemplate3] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes3 := GetDataTypeArrayFromSF(fields)
+
+	values3 := ResponseToByteArrayWithParams(resp3, datatypes3, tags3, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values3, Time_start: startTime3, Time_end: endTime3, NumOfTables: numOfTab3})
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+	fmt.Println("\tresp get:\n", respGet.ToString())
+
+	queryG := NewQuery(queryGet, "iot_medium", "s")
+	respG, err := dbConn.Query(queryG)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp G:\n", respG.ToString())
+	}
+
+}
+
+func TestSTsCacheClientEmptyTag(t *testing.T) {
+	querySet1 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:00:00Z' GROUP BY "name",time(10m)`
+	querySet2 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_50') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+	querySet3 := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_99') AND TIME >= '2022-01-01T00:40:00Z' AND TIME < '2022-01-01T01:00:00Z' GROUP BY "name",time(10m)`
+
+	queryGet := `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:00:00Z' GROUP BY "name",time(10m)`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_medium"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_medium")
+	Fields = GetFieldKeys(c, "iot_medium")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	query1 := NewQuery(querySet1, "iot_medium", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp1:\n", resp1.ToString())
+	}
+	//values1 := ResponseToByteArray(resp1, querySet1)
+	numOfTab1 := GetNumOfTable(resp1)
+
+	partialSegment := ""
+	fields := ""
+	metric := ""
+	queryTemplate1, startTime1, endTime1, tags1 := GetQueryTemplate(querySet1)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet1)
+	QueryTemplateToPartialSegment[queryTemplate1] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes1 := GetDataTypeArrayFromSF(fields)
+
+	values1 := ResponseToByteArrayWithParams(resp1, datatypes1, tags1, metric, partialSegment)
+
+	// 用于 Get 的语义段
+	//semanticSegment := GetTotalSegment(metric, tags, partialSegment)
+	// 用于 Set 的语义段
+	starSegment := GetStarSegment(metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values1, Time_start: startTime1, Time_end: endTime1, NumOfTables: numOfTab1})
+
+	query2 := NewQuery(querySet2, "iot_medium", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp2:\n", resp2.ToString())
+	}
+	//values2 := ResponseToByteArray(resp2, querySet2)
+	numOfTab2 := GetNumOfTable(resp2)
+
+	queryTemplate2, startTime2, endTime2, tags2 := GetQueryTemplate(querySet2)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet2)
+	QueryTemplateToPartialSegment[queryTemplate2] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes2 := GetDataTypeArrayFromSF(fields)
+
+	values2 := ResponseToByteArrayWithParams(resp2, datatypes2, tags2, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values2, Time_start: startTime2, Time_end: endTime2, NumOfTables: numOfTab2})
+
+	query3 := NewQuery(querySet3, "iot_medium", "s")
+	resp3, err := dbConn.Query(query3)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp3:\n", resp3.ToString())
+	}
+	//values3 := ResponseToByteArray(resp3, querySet3)
+	numOfTab3 := GetNumOfTable(resp3)
+
+	queryTemplate3, startTime3, endTime3, tags3 := GetQueryTemplate(querySet3)
+	partialSegment, fields, metric = GetPartialSegmentAndFields(querySet3)
+	QueryTemplateToPartialSegment[queryTemplate3] = partialSegment
+	SegmentToFields[partialSegment] = fields
+	SegmentToMetric[partialSegment] = metric
+	fields = "time[int64]," + fields
+	datatypes3 := GetDataTypeArrayFromSF(fields)
+
+	values3 := ResponseToByteArrayWithParams(resp3, datatypes3, tags3, metric, partialSegment)
+
+	err = STsConnArr[0].Set(&stscache.Item{Key: starSegment, Value: values3, Time_start: startTime3, Time_end: endTime3, NumOfTables: numOfTab3})
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+	fmt.Println("\tresp get:\n", respGet.ToString())
+
+	queryG := NewQuery(queryGet, "iot_medium", "s")
+	respG, err := dbConn.Query(queryG)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tresp G:\n", respG.ToString())
+	}
+
+}
