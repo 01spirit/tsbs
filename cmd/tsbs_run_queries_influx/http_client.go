@@ -81,7 +81,9 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions, workerNum int)
 
 		_, byteLength, hitKind = client.STsCacheClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery))
 
-	} else if client.UseCache == "fatcache" {
+	} else if strings.EqualFold(client.UseCache, "tscache") {
+
+		_, byteLength, hitKind = client.TSCacheClient(DBConn[workerNum%len(DBConn)], string(q.RawQuery))
 
 	} else { // database
 

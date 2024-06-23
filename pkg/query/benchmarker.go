@@ -96,17 +96,9 @@ func NewBenchmarkRunner(config BenchmarkRunnerConfig) *BenchmarkRunner {
 	client.DB = config.DBName
 
 	client.UseCache = config.UseCache
-	if client.UseCache == "stscache" {
-		client.STsCacheURL = config.CacheURL
-		STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
-		client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
-	} else if client.UseCache == "fatcache" {
-		//client.FatcacheURL = config.CacheURL
-		//FatcacheURLArr := strings.Split(client.FatcacheURL, ",")
-		//client.FatcacheConnArr = client.InitFatcacheConnsArr(FatcacheURLArr)
-		//
-		//client.TimeSize = config.TimeSize
-	}
+	client.STsCacheURL = config.CacheURL
+	STsCacheURLArr := strings.Split(client.STsCacheURL, ",")
+	client.STsConnArr = client.InitStsConnsArr(STsCacheURLArr)
 
 	//fmt.Println(client.UseCache)
 	//fmt.Println(client.TimeSize)

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/gob"
 	"fmt"
+	"github.com/timescale/tsbs/cmd/tsbs_generate_queries/databases/influx"
 	"github.com/timescale/tsbs/zipfian/counter"
 	"github.com/timescale/tsbs/zipfian/distributionGenerator"
 	"io"
@@ -305,6 +306,8 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 	}
 
 	fmt.Printf("ratio:\t%d\n", common.Ratio)
+	fmt.Println("random: ", influx.RandomTag)
+	fmt.Printf("tag num:\t%d\n", influx.TagNum)
 
 	// Print stats:
 	keys := []string{}

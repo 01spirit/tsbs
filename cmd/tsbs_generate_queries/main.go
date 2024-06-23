@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/timescale/tsbs/cmd/tsbs_generate_queries/databases/influx"
 	common2 "github.com/timescale/tsbs/cmd/tsbs_generate_queries/uses/common"
 	"github.com/timescale/tsbs/pkg/data/usecases/common"
 	"github.com/timescale/tsbs/pkg/query/config"
@@ -58,9 +59,12 @@ var useCaseMatrix = map[string]map[string]utils.QueryFillerMaker{
 		iot.LabelSimpleIoTQuery:             iot.NewSimpleIoT,
 		iot.LableDiagnosticsFuel:            iot.NewDiagnosticsFuel,
 		iot.LableDiagnosticsLoad:            iot.NewDiagnosticsLoad,
+		iot.LableDiagnosticsFive:            iot.NewDiagnosticsFive,
 		iot.LableReadingsPosition:           iot.NewReadingsPosition,
+		iot.LableReadingsPosition2:          iot.NewReadingsPosition2,
 		iot.LableReadingsFuel:               iot.NewReadingsFuel,
 		iot.LableReadingsVelocity:           iot.NewReadingsVelocity,
+		iot.LableReadingsVelocity2:          iot.NewReadingsVelocityAndFuel2,
 		iot.LableReadingsAvgFuelConsumption: iot.NewReadingsAvgFuelConsumption,
 		iot.LableReadingsMaxVelocity:        iot.NewReadingsMaxVelocity,
 		//
@@ -118,6 +122,9 @@ func init() {
 	common.Ratio[0] = n1
 	common.Ratio[1] = n2
 	common2.TruckScale = viper.GetString("truck-scale")
+
+	influx.RandomTag = viper.GetBool("random-tag")
+	influx.TagNum = viper.GetInt("tag-num")
 }
 
 func main() {

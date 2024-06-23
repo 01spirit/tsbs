@@ -549,7 +549,7 @@ func GetSemanticSegment(queryString string) string {
 	return result
 }
 
-// GetSemanticSegment 重构根据查询语句生成语义段的功能
+// GetSemanticSegmentAndFields 重构根据查询语句生成语义段的功能
 func GetSemanticSegmentAndFields(queryString string) (string, string) {
 	result := ""
 

@@ -57,9 +57,12 @@ const (
 	LabelSimpleIoTQuery             = "simple-iot"
 	LableDiagnosticsFuel            = "diagnostics_fuel"
 	LableDiagnosticsLoad            = "diagnostics_load"
+	LableDiagnosticsFive            = "diagnostics_five"
 	LableReadingsPosition           = "readings_position"
+	LableReadingsPosition2          = "readings_position2"
 	LableReadingsFuel               = "readings_fuel"
 	LableReadingsVelocity           = "readings_velocity"
+	LableReadingsVelocity2          = "readings_velocity2"
 	LableReadingsAvgFuelConsumption = "readings_avg_fuel_consumption"
 	LableReadingsMaxVelocity        = "readings_max_velocity"
 	//
@@ -210,6 +213,18 @@ type DiagnosticsFuelFiller interface {
 
 type ReadingsPositionFiller interface {
 	ReadingsPosition(query.Query, int64, int64, int)
+}
+
+type ReadingsPosition2Filler interface {
+	ReadingsPosition2(query.Query, int64, int64, int)
+}
+
+type DiagnosticsFiveFiller interface {
+	DiagnosticsFive(query.Query, int64, int64, int)
+}
+
+type ReadingsVelocityAndFuel2Filler interface {
+	ReadingsVelocityAndFuel2(query.Query, int64, int64, int)
 }
 
 type ReadingsFuelFiller interface {
