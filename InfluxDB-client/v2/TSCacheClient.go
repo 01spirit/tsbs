@@ -82,9 +82,9 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 		/* 把查询结果从字节流转换成 Response 结构 */
 		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponseWithDatatype(values, datatypes)
 
-		fmt.Println("\tconverted response:")
+		//fmt.Println("\tconverted response:")
 		//fmt.Println(len(values))
-		fmt.Println(convertedResponse.ToString())
+		//fmt.Println(convertedResponse.ToString())
 
 		if flagNum == 0 { // 全部命中
 			//log.Printf("GET.")
