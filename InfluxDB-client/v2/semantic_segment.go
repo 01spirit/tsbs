@@ -582,9 +582,14 @@ func GetPartialSegmentAndFields(queryString string) (string, string, string) {
 func GetSingleSegment(metric, partialSegment string, tags []string) []string {
 	result := make([]string, 0)
 
-	for _, tag := range tags {
-		tmpRes := fmt.Sprintf("{(%s.%s)}%s", metric, tag, partialSegment)
+	if len(tags) == 0 {
+		tmpRes := fmt.Sprintf("{(%s.*)}%s", metric, partialSegment)
 		result = append(result, tmpRes)
+	} else {
+		for _, tag := range tags {
+			tmpRes := fmt.Sprintf("{(%s.%s)}%s", metric, tag, partialSegment)
+			result = append(result, tmpRes)
+		}
 	}
 
 	return result
@@ -600,8 +605,12 @@ func GetStarSegment(metric, partialSegment string) string {
 func GetTotalSegment(metric string, tags []string, partialSegment string) string {
 	result := ""
 
-	for _, tag := range tags {
-		result += fmt.Sprintf("(%s.%s)", metric, tag)
+	if len(tags) == 0 {
+		result += fmt.Sprintf("(%s.*)", metric)
+	} else {
+		for _, tag := range tags {
+			result += fmt.Sprintf("(%s.%s)", metric, tag)
+		}
 	}
 
 	result = "{" + result + "}" + partialSegment

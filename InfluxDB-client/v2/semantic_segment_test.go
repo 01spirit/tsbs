@@ -793,7 +793,7 @@ func TestNewGetSegment(t *testing.T) {
 		},
 		{
 			name:        "3",
-			queryString: `SELECT mean(velocity),mean(fuel_consumption) FROM "readings" WHERE ("name"='truck_1' or "name"='truck_50' or "name"='truck_99') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:10:00Z' GROUP BY "name",time(10m)`,
+			queryString: `SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:10:00Z'`,
 			expected:    "",
 		},
 		{
@@ -821,12 +821,12 @@ func TestNewGetSegment(t *testing.T) {
 		},
 	}
 
-	urlString := "192.168.1.101:11211"
-	urlArr := strings.Split(urlString, ",")
-	conns := InitStsConnsArr(urlArr)
-	fmt.Printf("number of conns:%d\n", len(conns))
-	TagKV = GetTagKV(c, "iot_small")
-	Fields = GetFieldKeys(c, "iot_small")
+	//urlString := "192.168.1.101:11211"
+	//urlArr := strings.Split(urlString, ",")
+	//conns := InitStsConnsArr(urlArr)
+	//fmt.Printf("number of conns:%d\n", len(conns))
+	//TagKV = GetTagKV(c, "iot_small")
+	//Fields = GetFieldKeys(c, "iot_small")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
