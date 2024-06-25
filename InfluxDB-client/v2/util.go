@@ -134,6 +134,7 @@ func GetQueryTimeRange(queryString string) (int64, int64) {
 func GetQueryTemplate(queryString string) (string, int64, int64, []string) {
 	var startTime int64
 	var endTime int64
+	var tags []string
 
 	/* 替换时间 */
 	timeReg := regexp.MustCompile("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
@@ -153,6 +154,9 @@ func GetQueryTemplate(queryString string) (string, int64, int64, []string) {
 
 	result := timeReg.ReplaceAllString(queryString, replacement)
 
+	if strings.Contains(queryString, "WHERE TIME") {
+		return result, startTime, endTime, tags
+	}
 	/* 替换 tag */
 	tagReg := `(?i)WHERE \((.+)\) AND`
 	conditionExpr := regexp.MustCompile(tagReg)
@@ -167,7 +171,7 @@ func GetQueryTemplate(queryString string) (string, int64, int64, []string) {
 	tagString = strings.ReplaceAll(tagString, "'", "")
 	tagString = strings.ReplaceAll(tagString, " ", "")
 
-	tags := strings.Split(tagString, "or")
+	tags = strings.Split(tagString, "or")
 	sort.Strings(tags)
 
 	return result, startTime, endTime, tags

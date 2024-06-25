@@ -354,6 +354,32 @@ func tenMinutePeriods(minutesPerHour float64, duration time.Duration) int {
 var RandomTag bool = true
 var TagNum int = 10
 
+func (i *IoT) OnlyField1(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := i.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	influxql = fmt.Sprintf(
+		`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE TIME >= '%s' AND TIME < '%s'`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx Only Field 1 queries"
+	humanDesc := humanLabel
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (i *IoT) OnlyField2(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := i.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	influxql = fmt.Sprintf(
+		`SELECT mean(current_load),mean(fuel_state),mean(fuel_capacity) FROM "diagnostics" WHERE TIME >= '%s' AND TIME < '%s'`,
+		interval.StartString(), interval.EndString())
+
+	humanLabel := "Influx Only Field 2 queries"
+	humanDesc := humanLabel
+	i.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
 func (i *IoT) ReadingsPosition(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
 	interval := i.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
 	var influxql string
@@ -603,6 +629,24 @@ func (i *IoT) MultiQueries(qi query.Query, zipNum int64, latestNum int64, newOrO
 		break
 	default:
 		i.ReadingsPosition(qi, zipNum, latestNum, newOrOld)
+		break
+	}
+
+	fmt.Printf("number:\t%d\n", index)
+	index++
+}
+
+func (i *IoT) OnlyFieldQueries(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+
+	switch index % 2 {
+	case 0:
+		i.OnlyField1(qi, zipNum, latestNum, newOrOld)
+		break
+	case 1:
+		i.OnlyField2(qi, zipNum, latestNum, newOrOld)
+		break
+	default:
+		i.OnlyField1(qi, zipNum, latestNum, newOrOld)
 		break
 	}
 

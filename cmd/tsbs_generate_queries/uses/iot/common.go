@@ -66,7 +66,8 @@ const (
 	LableReadingsAvgFuelConsumption = "readings_avg_fuel_consumption"
 	LableReadingsMaxVelocity        = "readings_max_velocity"
 	//
-	LabelMultiQueries = "multi_queries"
+	LabelMultiQueries     = "multi_queries"
+	LabelOnlyFieldQueries = "only_field_queries"
 )
 
 // Core is the common component of all generators for all systems.
@@ -245,4 +246,16 @@ type ReadingsMaxVelocityFiller interface {
 
 type MultiQueriesFiller interface {
 	MultiQueries(query.Query, int64, int64, int)
+}
+
+type OnlyField1Filler interface {
+	OnlyField1(query.Query, int64, int64, int)
+}
+
+type OnlyField2Filler interface {
+	OnlyField2(query.Query, int64, int64, int)
+}
+
+type OnlyFieldQueriesFiller interface {
+	OnlyFieldQueries(query.Query, int64, int64, int)
 }
