@@ -115,6 +115,14 @@ func TestGetQueryTemplate(t *testing.T) {
 			expectedEndTime:   1640998800,
 			expectedTags:      []string{"name=truck_0", "name=truck_1", "name=truck_10", "name=truck_12"},
 		},
+		{
+			name:              "2",
+			queryString:       `SELECT latitude,longitude,elevation,grade,heading,velocity FROM "readings" WHERE ("name" = 'truck_0') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T01:00:00Z'`,
+			expectedTemplate:  `SELECT latitude,longitude,elevation,grade,heading,velocity FROM "readings" WHERE (?) AND TIME >= '?' AND TIME < '?'`,
+			expectedStartTime: 1640995200,
+			expectedEndTime:   1640998800,
+			expectedTags:      []string{"name=truck_0"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

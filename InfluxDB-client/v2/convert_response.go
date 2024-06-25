@@ -844,7 +844,19 @@ func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int
 	matchStr = `(?i)GROUP BY .+(time\(.+\))`
 	conditionExpr = regexp.MustCompile(matchStr)
 	if ok, _ := regexp.MatchString(matchStr, queryString); !ok {
-		return "", 0, 0
+		template, _, _, _ := GetQueryTemplate(queryString)
+		minTime = timeRangeArr[0][0]
+		maxTime = timeRangeArr[0][1]
+
+		tmpTagString := fmt.Sprintf("\"%s\"='%s'", tagArr[0][0], tagArr[0][1])
+		startTime := TimeInt64ToString(minTime)
+		endTime := TimeInt64ToString(maxTime)
+
+		template = strings.Replace(template, "?", tmpTagString, 1)
+		template = strings.Replace(template, "?", startTime, 1)
+		template = strings.Replace(template, "?", endTime, 1)
+
+		return template, minTime, maxTime
 	}
 	condExprMatch = conditionExpr.FindStringSubmatch(queryString)
 	AggrExpr := condExprMatch[1]
