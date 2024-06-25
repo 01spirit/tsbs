@@ -64,7 +64,7 @@ var (
 
 const (
 	// DefaultTimeout is the default socket read/write timeout.		默认超时时间
-	DefaultTimeout = 10000 * time.Millisecond
+	DefaultTimeout = 1000 * time.Millisecond
 	//DefaultTimeout = 100 * 100 * 100 * 1000 * time.Millisecond
 	//DefaultTimeout = 0 * time.Millisecond
 
