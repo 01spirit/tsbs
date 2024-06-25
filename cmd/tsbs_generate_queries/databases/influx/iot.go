@@ -359,7 +359,7 @@ func (i *IoT) OnlyField1(qi query.Query, zipNum int64, latestNum int64, newOrOld
 	var influxql string
 
 	influxql = fmt.Sprintf(
-		`SELECT mean(latitude),mean(longitude),mean(elevation) FROM "readings" WHERE TIME >= '%s' AND TIME < '%s'`,
+		`SELECT latitude,longitude,elevation FROM "readings" WHERE TIME >= '%s' AND TIME < '%s'`,
 		interval.StartString(), interval.EndString())
 
 	humanLabel := "Influx Only Field 1 queries"
@@ -372,7 +372,7 @@ func (i *IoT) OnlyField2(qi query.Query, zipNum int64, latestNum int64, newOrOld
 	var influxql string
 
 	influxql = fmt.Sprintf(
-		`SELECT mean(current_load),mean(fuel_state),mean(fuel_capacity) FROM "diagnostics" WHERE TIME >= '%s' AND TIME < '%s'`,
+		`SELECT current_load,fuel_state,fuel_capacity FROM "diagnostics" WHERE TIME >= '%s' AND TIME < '%s'`,
 		interval.StartString(), interval.EndString())
 
 	humanLabel := "Influx Only Field 2 queries"
