@@ -819,14 +819,61 @@ func TestNewGetSegment(t *testing.T) {
 			// single segment:  {(readings.name=truck_92)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
 			// total segment:	{(readings.name=truck_0)(readings.name=truck_1)(readings.name=truck_10)(readings.name=truck_12)(readings.name=truck_2)(readings.name=truck_22)(readings.name=truck_32)(readings.name=truck_62)(readings.name=truck_92)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{empty}#{mean,1h}
 		},
+		{
+			name:        "5",
+			queryString: `SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE ("name"='truck_0' or "name"='truck_12') AND velocity > 50 AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:30:00Z' GROUP BY "name",time(5m)`,
+			expected:    "",
+			//query template:  SELECT mean(velocity),mean(fuel_consumption),mean(grade) FROM "readings" WHERE (?) AND velocity > 50 AND TIME >= '?' AND TIME < '?' GROUP BY "name",time(5m)
+			//start time:  1640995200
+			//end time:  1640997000
+			//tags:  [name=truck_0 name=truck_12]
+			//partial segment:  #{velocity[float64],fuel_consumption[float64],grade[float64]}#{(velocity>50[int64])}#{mean,5m}
+			//fields:  velocity[float64],fuel_consumption[float64],grade[float64]
+			//metric:  readings
+			//star segment:  {(readings.*)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{(velocity>50[int64])}#{mean,5m}
+			//single segment:  {(readings.name=truck_0)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{(velocity>50[int64])}#{mean,5m}
+			//single segment:  {(readings.name=truck_12)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{(velocity>50[int64])}#{mean,5m}
+			//total segment:  {(readings.name=truck_0)(readings.name=truck_12)}#{velocity[float64],fuel_consumption[float64],grade[float64]}#{(velocity>50[int64])}#{mean,5m}
+		},
+		{
+			name:        "6",
+			queryString: `SELECT mean(usage_nice),mean(usage_steal),mean(usage_guest) FROM "cpu" WHERE ("hostname" = 'host_0' or "hostname" = 'host_1') AND TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:30:00Z' GROUP BY "hostname",time(5m)`,
+			expected:    "",
+			//query template:  SELECT mean(usage_nice),mean(usage_steal),mean(usage_guest) FROM "cpu" WHERE (?) AND TIME >= '?' AND TIME < '?' GROUP BY "hostname",time(5m)
+			//start time:  1640995200
+			//end time:  1640997000
+			//tags:  [hostname=host_0 hostname=host_1]
+			//partial segment:  #{usage_nice[int64],usage_steal[int64],usage_guest[int64]}#{empty}#{mean,5m}
+			//fields:  usage_nice[int64],usage_steal[int64],usage_guest[int64]
+			//metric:  cpu
+			//star segment:  {(cpu.*)}#{usage_nice[int64],usage_steal[int64],usage_guest[int64]}#{empty}#{mean,5m}
+			//single segment:  {(cpu.hostname=host_0)}#{usage_nice[int64],usage_steal[int64],usage_guest[int64]}#{empty}#{mean,5m}
+			//single segment:  {(cpu.hostname=host_1)}#{usage_nice[int64],usage_steal[int64],usage_guest[int64]}#{empty}#{mean,5m}
+			//total segment:  {(cpu.hostname=host_0)(cpu.hostname=host_1)}#{usage_nice[int64],usage_steal[int64],usage_guest[int64]}#{empty}#{mean,5m}
+		},
+		{
+			name:        "7",
+			queryString: `SELECT mean(fuel_consumption) FROM "readings" WHERE TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:30:00Z' GROUP BY time(2m) `,
+			expected:    "",
+			//query template:  SELECT mean(fuel_consumption) FROM "readings" WHERE TIME >= '?' AND TIME < '?' GROUP BY time(2m)
+			//start time:  1640995200
+			//end time:  1640997000
+			//tags:  []
+			//partial segment:  #{fuel_consumption[float64]}#{empty}#{mean,2m}
+			//fields:  fuel_consumption[float64]
+			//metric:  readings
+			//star segment:  {(readings.*)}#{fuel_consumption[float64]}#{empty}#{mean,2m}
+			//single segment:  {(readings.*)}#{fuel_consumption[float64]}#{empty}#{mean,2m}
+			//total segment:  {(readings.*)}#{fuel_consumption[float64]}#{empty}#{mean,2m}
+		},
 	}
 
-	//urlString := "192.168.1.101:11211"
-	//urlArr := strings.Split(urlString, ",")
-	//conns := InitStsConnsArr(urlArr)
-	//fmt.Printf("number of conns:%d\n", len(conns))
-	//TagKV = GetTagKV(c, "iot_small")
-	//Fields = GetFieldKeys(c, "iot_small")
+	urlString := "192.168.1.101:11211"
+	urlArr := strings.Split(urlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

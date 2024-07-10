@@ -78,7 +78,7 @@ User to use to connect to the PostgreSQL server.
 #### `--admin-db-name` (type: `string`, default: value of `-user`)
 
 Database to connect to in order to create additional benchmark databases.
-By default this is the same as the `user` (i.e., `postgres` if neither is set),
+By default this is the same as the `user` (d.e., `postgres` if neither is set),
 but sometimes a user does not have its own database.
 
 ### Tags related
@@ -151,18 +151,18 @@ write performance.
 
 #### `-partition-index` (type: `boolean`, default: `true`)
 Whether to create a compound index on the primary tag and time dimension
-(i.e., an index on `(tags_id, time DESC)`). Removing this index is likely
+(d.e., an index on `(tags_id, time DESC)`). Removing this index is likely
 to significantly reduce query performance.
 
 #### `-time-index` (type: `boolean`, default: `true`)
 Whether to create an index on the time dimension. For datasets with smaller
-number of devices (i.e., <100k), this is usually recommended. For a larger
+number of devices (d.e., <100k), this is usually recommended. For a larger
 number of devices, `-time-partition-index` is recommended instead.
 
 #### `-time-partition-index` (type: `boolean`, default: `false`)
 Whether to create a compound index on the time dimension and the primary
-tag (i.e., an index on `(time DESC, tags_id)`).
-For datasets with a larger number of devices (i.e., >100k), this is
+tag (d.e., an index on `(time DESC, tags_id)`).
+For datasets with a larger number of devices (d.e., >100k), this is
 usually recommended because it increases write performance by
 reducing lock contention on nodes in the
 B-tree since they are additionally partitioned by `tags_id`.

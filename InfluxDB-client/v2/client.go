@@ -1129,6 +1129,8 @@ func STsCacheClient(conn Client, queryString string) (*Response, uint64, uint8) 
 
 			//remainByteArr := ResponseToByteArray(remainResp, queryString)
 			remainByteArr := RemainResponseToByteArrayWithParams(remainResp, datatypes, remainTags, metric, partialSegment)
+			//remainByteArr := ResponseToByteArrayWithParams(remainResp, datatypes, remainTags, metric, partialSegment)
+			//fmt.Println(remainQuery, "\nlen:", len(remainByteArr))
 
 			numOfTableR := len(remainResp.Results)
 

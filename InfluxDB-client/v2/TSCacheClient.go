@@ -82,6 +82,7 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 		/* 把查询结果从字节流转换成 Response 结构 */
 		convertedResponse, flagNum, flagArr, timeRangeArr, tagArr := ByteArrayToResponseWithDatatype(values, datatypes)
 
+		//convertedResponse, flagNum, _, _, _ := ByteArrayToResponseWithDatatype(values, datatypes)
 		//fmt.Println("\tconverted response:")
 		//fmt.Println(len(values))
 		//fmt.Println(convertedResponse.ToString())
@@ -126,7 +127,7 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 
 			// 查数据库为空
 			if ResponseIsEmpty(remainResp) {
-				hitKind = 2
+				hitKind = 1
 
 				//fmt.Printf("\tdatabase miss 2:%s\n", remainQueryString)
 
@@ -134,10 +135,15 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 			}
 
 			//remainByteArr := ResponseToByteArray(remainResp, queryString)
+			//todo
 			remainByteArr := RemainResponseToByteArrayWithParams(remainResp, datatypes, remainTags, metric, partialSegment)
 
-			numOfTableR := len(remainResp.Results)
+			//RemainResponseToByteArrayWithParams(remainResp, datatypes, remainTags, metric, partialSegment)
 
+			// fmt.Println("\tremain byte length", len(remainByteArr))
+			//todo
+			numOfTableR := len(remainResp.Results)
+			//todo
 			err = STsConnArr[CacheIndex].Set(&stscache.Item{
 				Key:         semanticSegment,
 				Value:       remainByteArr,
@@ -147,8 +153,9 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 			})
 
 			if err != nil {
-				//log.Printf("partial get Set fail: %v\tvalue length:%d\tthread:%d\nQUERY STRING:\t%s\n", err, len(remainByteArr), workerNum, remainQueryString)
+				log.Printf("partial get Set fail")
 			} else {
+				//log.Printf("partial get Set fail1")
 				//log.Printf("bytes set:%d\n", len(remainByteArr))
 			}
 
@@ -157,6 +164,37 @@ func TSCacheClient(conn Client, queryString string) (*Response, uint64, uint8) {
 			totalResp := MergeRemainResponse(remainResp, convertedResponse)
 
 			return totalResp, byteLength, hitKind
+
+			//return convertedResponse, byteLength, hitKind
+
+			//q := NewQuery(queryString, DB, "s")
+			//resp, err := conn.Query(q)
+			//if err != nil {
+			//	log.Println(queryString)
+			//}
+			//
+			//if !ResponseIsEmpty(resp) {
+			//	numOfTab := GetNumOfTable(resp)
+			//
+			//	//remainValues := ResponseToByteArray(resp, queryString)
+			//	remainValues := ResponseToByteArrayWithParams(resp, datatypes, tags, metric, partialSegment)
+			//
+			//	err = STsConnArr[CacheIndex].Set(&stscache.Item{Key: semanticSegment, Value: remainValues, Time_start: startTime, Time_end: endTime, NumOfTables: numOfTab})
+			//
+			//	if err != nil {
+			//		//log.Printf("Error setting value: %v\nQUERY STRING:\t%s\n", err, queryString)
+			//	} else {
+			//		//log.Printf("STORED.")
+			//	}
+			//
+			//} else { // 查数据库为空
+			//
+			//	//num++
+			//	//fmt.Println("miss number: ", num)
+			//	//fmt.Printf("\tdatabase miss 1:%s\n", queryString)
+			//}
+			//return resp, byteLength, hitKind
+
 		}
 
 	}

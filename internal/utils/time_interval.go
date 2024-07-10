@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	client "github.com/timescale/tsbs/InfluxDB-client/v2"
 	"math/rand"
 	"time"
 )
@@ -155,11 +154,11 @@ func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int6
 		totalEndTime := ti.end.UnixNano() - 1
 		//fmt.Println(ti.end)
 		//fmt.Printf("start time:\t%d\tend time:\t%d\n", totalStartTime, totalEndTime)
-		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
+		//fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(totalStartTime), client.NanoTimeInt64ToString(totalEndTime))
 
 		queryEndTime := totalEndTime - ((time.Hour.Nanoseconds() * 12) * (365*2 - latestNum - 1)) // Latest分布生成结束时间
 		queryStartTime := queryEndTime - duration
-		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(queryStartTime), client.NanoTimeInt64ToString(queryEndTime))
+		//fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(queryStartTime), client.NanoTimeInt64ToString(queryEndTime))
 		if queryStartTime < totalStartTime {
 			queryStartTime = totalStartTime
 		}
@@ -175,8 +174,8 @@ func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int6
 			panic(err.Error())
 		}
 
-		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
-		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
+		//fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
+		//fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
 		return x
 	} else {
 		totalStartTime := ti.start.UnixNano()
@@ -199,8 +198,8 @@ func (ti *TimeInterval) DistributionRandWithOldData(zipNum int64, latestNum int6
 			panic(err.Error())
 		}
 
-		fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
-		fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
+		//fmt.Printf("zipnum:\t%d\tlatestnum:\t%d\tnew:\t%d\n", zipNum, latestNum, newOrOld)
+		//fmt.Printf("start time:\t%s\tend time:\t%s\n", client.NanoTimeInt64ToString(x.start.UnixNano()), client.NanoTimeInt64ToString(x.end.UnixNano()))
 		return x
 	}
 

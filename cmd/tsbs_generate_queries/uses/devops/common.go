@@ -36,6 +36,10 @@ const (
 	LabelGroupbyOrderbyLimit = "groupby-orderby-limit"
 	// LabelHighCPU is the prefix for queries of the high-CPU variety
 	LabelHighCPU = "high-cpu"
+
+	//
+	LabelSimpleCPU  = "simple-cpu"
+	LabelCPUQueries = "cpu-queries"
 )
 
 // Core is the common component of all generators for all systems
@@ -165,4 +169,31 @@ func getRandomHosts(numHosts int, totalHosts int) ([]string, error) {
 	}
 
 	return hostnames, nil
+}
+
+type SimpleCPUFiller interface {
+	SimpleCPU(query.Query, int64, int64, int)
+}
+
+type ThreeField3Filler interface {
+	ThreeField3(query.Query, int64, int64, int)
+}
+type FiveField1Filler interface {
+	FiveField1(query.Query, int64, int64, int)
+}
+type ThreeFieldFiller interface {
+	ThreeField(query.Query, int64, int64, int)
+}
+type ThreeField2Filler interface {
+	ThreeField2(query.Query, int64, int64, int)
+}
+type TenFieldFiller interface {
+	TenField(query.Query, int64, int64, int)
+}
+type TenFieldWithPredicateFiller interface {
+	TenFieldWithPredicate(query.Query, int64, int64, int)
+}
+
+type CPUQueriesFiller interface {
+	CPUQueries(query.Query, int64, int64, int)
 }

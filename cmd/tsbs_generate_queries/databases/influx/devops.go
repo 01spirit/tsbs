@@ -19,7 +19,7 @@ type Devops struct {
 func (d *Devops) getHostWhereWithHostnames(hostnames []string) string {
 	hostnameClauses := []string{}
 	for _, s := range hostnames {
-		hostnameClauses = append(hostnameClauses, fmt.Sprintf("hostname = '%s'", s))
+		hostnameClauses = append(hostnameClauses, fmt.Sprintf("\"hostname\" = '%s'", s))
 	}
 
 	combinedHostnameClause := strings.Join(hostnameClauses, " or ")
@@ -146,4 +146,166 @@ func (d *Devops) HighCPUForHosts(qi query.Query, nHosts int) {
 	humanDesc := fmt.Sprintf("%s: %s", humanLabel, interval.StartString())
 	influxql := fmt.Sprintf("SELECT * from cpu where usage_user > 90.0 %s and time >= '%s' and time <= '%s'", hostWhereClause, interval.StartString(), interval.EndString())
 	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) SimpleCPU(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_nice),mean(usage_steal),mean(usage_guest) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(5m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_nice),mean(usage_steal),mean(usage_guest) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Simple CPU"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) ThreeField3(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_system),mean(usage_idle),mean(usage_nice) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_system),mean(usage_idle),mean(usage_nice) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(60m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Three Field 3"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) FiveField1(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle),mean(usage_nice),mean(usage_iowait) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle),mean(usage_nice),mean(usage_iowait) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(60m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Five Field 1"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) ThreeField(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(60m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Three Field"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) ThreeField2(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_idle),mean(usage_nice),mean(usage_iowait) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_idle),mean(usage_nice),mean(usage_iowait) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(60m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Three Field 2"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) TenField(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle),mean(usage_nice),mean(usage_iowait),mean(usage_irq),mean(usage_softirq),mean(usage_steal),mean(usage_guest),mean(usage_guest_nice) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(15m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT mean(usage_user),mean(usage_system),mean(usage_idle),mean(usage_nice),mean(usage_iowait),mean(usage_irq),mean(usage_softirq),mean(usage_steal),mean(usage_guest),mean(usage_guest_nice) FROM "cpu" WHERE %s AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname",time(60m)`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Ten Field "
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) TenFieldWithPredicate(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	interval := d.Interval.DistributionRandWithOldData(zipNum, latestNum, newOrOld)
+	var influxql string
+
+	if zipNum < 5 {
+		influxql = fmt.Sprintf(
+			`SELECT usage_user,usage_system,usage_idle,usage_nice,usage_iowait,usage_irq,usage_softirq,usage_steal,usage_guest,usage_guest_nice FROM "cpu" WHERE %s AND usage_user > 90 AND usage_guest > 90 AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname"`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	} else {
+		influxql = fmt.Sprintf(
+			`SELECT usage_user,usage_system,usage_idle,usage_nice,usage_iowait,usage_irq,usage_softirq,usage_steal,usage_guest,usage_guest_nice FROM "cpu" WHERE %s AND usage_user > 90 AND usage_guest > 90 AND TIME >= '%s' AND TIME < '%s' GROUP BY "hostname"`,
+			d.getHostWhereString(TagNum), interval.StartString(), interval.EndString())
+	}
+
+	humanLabel := "Influx Ten Field with Predicate"
+	humanDesc := humanLabel
+	d.fillInQuery(qi, humanLabel, humanDesc, influxql)
+}
+
+func (d *Devops) CPUQueries(qi query.Query, zipNum int64, latestNum int64, newOrOld int) {
+	switch index % 6 {
+	case 0:
+		d.ThreeField3(qi, zipNum, latestNum, newOrOld)
+		break
+	case 1:
+		d.FiveField1(qi, zipNum, latestNum, newOrOld)
+		break
+	case 2:
+		d.ThreeField(qi, zipNum, latestNum, newOrOld)
+		break
+	case 3:
+		d.ThreeField2(qi, zipNum, latestNum, newOrOld)
+		break
+	case 4:
+		d.TenField(qi, zipNum, latestNum, newOrOld)
+		break
+	case 5:
+		d.TenFieldWithPredicate(qi, zipNum, latestNum, newOrOld)
+		break
+	default:
+		d.FiveField1(qi, zipNum, latestNum, newOrOld)
+		break
+	}
+
+	fmt.Printf("number:\t%d\n", index)
+	index++
 }

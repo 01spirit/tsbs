@@ -178,7 +178,7 @@ Variables needed:
 1. and the type of query you'd like to generate. E.g., `single-groupby-1-1-1` or `last-loc`
 
 For the last step there are numerous queries to choose from, which are
-listed in [Appendix I](#appendix-i-query-types). Additionally, the file
+listed in [Appendix I](#appendix-d-query-types). Additionally, the file
 `scripts/generate_queries.sh` contains a list of all of them as the
 default value for the environmental variable `QUERY_TYPES`. If you are
 generating more than one type of query, we recommend you use the
@@ -205,7 +205,7 @@ $ FORMATS="timescaledb" SCALE=4000 SEED=123 \
 ```
 
 A full list of query types can be found in
-[Appendix I](#appendix-i-query-types) at the end of this README.
+[Appendix I](#appendix-d-query-types) at the end of this README.
 
 ### Benchmarking insert/write performance
 
@@ -391,7 +391,7 @@ actual query results so that you can compare across databases that the
 results are the same. Using the flag `-print-responses` will return
 the results.
 
-## Appendix I: Query types <a name="appendix-i-query-types"></a>
+## Appendix I: Query types <a name="appendix-d-query-types"></a>
 
 ### Devops / cpu-only
 |Query type|Description|
@@ -415,7 +415,7 @@ the results.
 ### IoT
 |Query type|Description|
 |:---|:---|
-|last-loc|Fetch real-time (i.e. last) location of each truck
+|last-loc|Fetch real-time (d.e. last) location of each truck
 |low-fuel|Fetch all trucks with low fuel (less than 10%)
 |high-load|Fetch trucks with high current load (over 90% load capacity)
 |stationary-trucks|Fetch all trucks that are stationary (low avg velocity in last 10 mins)

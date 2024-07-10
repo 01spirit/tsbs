@@ -44,7 +44,7 @@ Comma-separated list of hostname and port combinations for nodes in the cluster.
 
 #### `-replication-factor` (type: `int`, default: `1`)
 
-Level of replication for each write, i.e., number of nodes to store the
+Level of replication for each write, d.e., number of nodes to store the
 data on. Only applies a multi-node cluster.
 
 #### `-write-timeout` (type: `duration`, default: `10s`)

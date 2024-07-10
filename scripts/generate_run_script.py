@@ -14,7 +14,7 @@ Usage flags:
     -f      Filename containing query benchmark names, one per line. Lines can
             be commented out to exclude those benchmarks (default: queries.txt)
 
-    -i      Insert benchmark only, no queries (default: false)
+    -d      Insert benchmark only, no queries (default: false)
 
     -l      Directory where input files are located. They should be named
             `[database]-data.gz` (default: /tmp)
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         help='Extra arguments to pass directly to query runner')
     parser.add_argument('-f', dest='queries_file_name', default='queries.txt',
         type=str, help='File containing a list of queries to run, one per line')
-    parser.add_argument('-i', dest='write_only', default=False,
+    parser.add_argument('-d', dest='write_only', default=False,
         action='store_true', help='Whether to only generate commands for inserts')
     parser.add_argument('-l', dest='load_file_dir', default=default_load_dir,
         type=str, help='Path to directory where data to insert is stored')

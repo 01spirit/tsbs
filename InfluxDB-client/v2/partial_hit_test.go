@@ -130,13 +130,13 @@ func TestPartialHitPerformance(t *testing.T) {
 				// cache query string
 				setStartTime := curStartTime
 				setEndTime := TimeInt64ToString(i + setTimeInterval)
-				queryStringSet := fmt.Sprintf("SELECT mean(longitude),mean(latitude),mean(velocity) FROM \"readings\" WHERE (%s) AND TIME >= '%s' AND TIME < '%s' GROUP BY \"name\",time(1m)", tagString, setStartTime, setEndTime)
+				queryStringSet := fmt.Sprintf("SELECT mean(longitude),mean(latitude),mean(velocity) FROM \"readings\" WHERE (%s) AND TIME >= '%s' AND TIME < '%s' GROUP BY \"name\",time(5m)", tagString, setStartTime, setEndTime)
 				//fmt.Println(queryStringSet)
 
 				// database query string
 				dbStartTime := setEndTime
 				dbEndTime := curEndTime
-				queryStringDB := fmt.Sprintf("SELECT mean(longitude),mean(latitude),mean(velocity) FROM \"readings\" WHERE (%s) AND TIME >= '%s' AND TIME < '%s' GROUP BY \"name\",time(1m)", tagString, dbStartTime, dbEndTime)
+				queryStringDB := fmt.Sprintf("SELECT mean(longitude),mean(latitude),mean(velocity) FROM \"readings\" WHERE (%s) AND TIME >= '%s' AND TIME < '%s' GROUP BY \"name\",time(5m)", tagString, dbStartTime, dbEndTime)
 				//fmt.Println(queryStringDB)
 
 				// 向 cache 存取

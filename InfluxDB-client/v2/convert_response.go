@@ -81,29 +81,43 @@ func RemainResponseToByteArrayWithParams(resp *Response, datatypes []string, tag
 
 	index := 0
 	for _, result := range resp.Results {
+		if result.Series == nil {
+			emptySingleSegment := fmt.Sprintf("{(%s.%s)}%s", metric, tags[index], partialSegment)
+			zero, _ := Int64ToByteArray(int64(0))
+			byteArray = append(byteArray, []byte(emptySingleSegment)...)
+			byteArray = append(byteArray, []byte(" ")...)
+			byteArray = append(byteArray, zero...)
+
+			index++
+			continue
+		}
 		numOfValues := len(result.Series[0].Values)                              // 表中数据行数
 		bytesPerSeries, _ := Int64ToByteArray(int64(bytesPerLine * numOfValues)) // 一张表的数据的总字节数：每行字节数 * 行数
 
 		singleSegment := ""
-		// 找到空表，一起传入 cache	tags 是查询的部分命中的 tag，实际上可能没查到数据
-		for key, value := range result.Series[0].Tags {
-			singleSegment = fmt.Sprintf("{(%s.%s=%s)}%s", metric, key, value, partialSegment)
-			startIndex := strings.Index(tags[index], "=")
-			for index < len(tags) {
-				if !strings.EqualFold(value, tags[index][startIndex+1:]) {
-					emptySingleSegment := fmt.Sprintf("{(%s.%s)}%s", metric, tags[index], partialSegment)
-					zero, _ := Int64ToByteArray(int64(0))
-					byteArray = append(byteArray, []byte(emptySingleSegment)...)
-					byteArray = append(byteArray, []byte(" ")...)
-					byteArray = append(byteArray, zero...)
+		if len(result.Series[0].Tags) == 0 {
+			singleSegment = fmt.Sprintf("{(%s.*)}%s", metric, partialSegment)
+			index++
+		} else {
+			for key, value := range result.Series[0].Tags {
+				singleSegment = fmt.Sprintf("{(%s.%s=%s)}%s", metric, key, value, partialSegment)
+				startIndex := strings.Index(tags[index], "=")
+				for index < len(tags) {
+					if !strings.EqualFold(value, tags[index][startIndex+1:]) {
+						emptySingleSegment := fmt.Sprintf("{(%s.%s)}%s", metric, tags[index], partialSegment)
+						zero, _ := Int64ToByteArray(int64(0))
+						byteArray = append(byteArray, []byte(emptySingleSegment)...)
+						byteArray = append(byteArray, []byte(" ")...)
+						byteArray = append(byteArray, zero...)
 
-					index++
-				} else {
-					index++
-					break
+						index++
+					} else {
+						index++
+						break
+					}
 				}
+				break
 			}
-			break
 		}
 
 		/* 存入一张表的 semantic segment 和表内所有数据的总字节数 */
@@ -115,6 +129,9 @@ func RemainResponseToByteArrayWithParams(resp *Response, datatypes []string, tag
 		for _, v := range result.Series[0].Values {
 			for j, vv := range v {
 				datatype := datatypes[j]
+				if j != 0 {
+					datatype = "float64"
+				}
 				tmpBytes := InterfaceToByteArray(j, datatype, vv)
 				byteArray = append(byteArray, tmpBytes...)
 
@@ -169,6 +186,9 @@ func ResponseToByteArrayWithParams(resp *Response, datatypes []string, tags []st
 		for _, v := range s.Values {
 			for j, vv := range v {
 				datatype := datatypes[j]
+				if j != 0 {
+					datatype = "float64"
+				}
 				tmpBytes := InterfaceToByteArray(j, datatype, vv)
 				result = append(result, tmpBytes...)
 
@@ -395,7 +415,10 @@ func ByteArrayToResponseWithDatatype(byteArray []byte, datatypes []string) (*Res
 		values = nil
 		for len(values) < lines { // 按行读取一张表中的所有数据
 			value = nil
-			for _, d := range datatypes { // 每次处理一行, 遍历一行中的所有列
+			for i, d := range datatypes { // 每次处理一行, 遍历一行中的所有列
+				if i != 0 {
+					d = "float64"
+				}
 				switch d { // 根据每列的数据类型选择转换方法
 				case "string":
 					bStartIdx := index
@@ -481,27 +504,22 @@ func ByteArrayToResponseWithDatatype(byteArray []byte, datatypes []string) (*Res
 		tag := merged[0][nameIndex+1 : len(merged[0])]
 		eqIdx := strings.Index(tag, "=") // tag 和 value 由  "=" 连接
 		if eqIdx <= 0 {                  // 没有等号说明没有tag
-			break
+			if tag == "*" {
+
+			} else {
+				break
+			}
+
+		} else {
+			key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
+			val := tag[eqIdx+1 : len(tag)]
+			tags[key] = val // 存入 tag map
+
+			tmpTagArr := make([]string, 2)
+			tmpTagArr[0] = key
+			tmpTagArr[1] = val
+			tagArr = append(tagArr, tmpTagArr)
 		}
-		key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
-		val := tag[eqIdx+1 : len(tag)]
-		tags[key] = val // 存入 tag map
-
-		tmpTagArr := make([]string, 2)
-		tmpTagArr[0] = key
-		tmpTagArr[1] = val
-		tagArr = append(tagArr, tmpTagArr)
-
-		//for _, m := range merged {
-		//	tag := m[nameIndex+1 : len(m)]
-		//	eqIdx := strings.Index(tag, "=") // tag 和 value 由  "=" 连接
-		//	if eqIdx <= 0 {                  // 没有等号说明没有tag
-		//		break
-		//	}
-		//	key := tag[:eqIdx] // Response 中的 tag 结构为 map[string]string
-		//	val := tag[eqIdx+1 : len(tag)]
-		//	tags[key] = val // 存入 tag map
-		//}
 
 		/* 处理sf 如果有聚合函数，列名要用函数名，否则用sf中的列名*/
 		columns := make([]string, 0)
@@ -822,12 +840,29 @@ func ByteArrayToResponse(byteArray []byte) (*Response, int, []uint8, [][]int64, 
 
 // RemainQueryString 根据 cache 返回结果中的时间范围构造一个剩余查询语句
 func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int64, tagArr [][]string) (string, int64, int64) {
-	if len(flagArr) == 0 || len(timeRangeArr) == 0 || len(tagArr) == 0 {
+	//if len(flagArr) == 0 || len(timeRangeArr) == 0 || len(tagArr) == 0 {
+	//	return "", 0, 0
+	//}
+	if len(flagArr) == 0 || len(timeRangeArr) == 0 {
 		return "", 0, 0
 	}
 
 	var maxTime int64 = 0
 	var minTime int64 = math.MaxInt64
+
+	if len(tagArr) == 0 {
+		template, _, _, _ := GetQueryTemplate(queryString)
+		minTime = timeRangeArr[0][0]
+		maxTime = timeRangeArr[0][1]
+
+		tmpTemplate := template
+		startTime := TimeInt64ToString(timeRangeArr[0][0])
+		endTime := TimeInt64ToString(timeRangeArr[0][1])
+		tmpTemplate = strings.Replace(tmpTemplate, "?", startTime, 1)
+		tmpTemplate = strings.Replace(tmpTemplate, "?", endTime, 1)
+
+		return tmpTemplate, minTime, maxTime
+	}
 
 	// select 语句
 
@@ -848,15 +883,32 @@ func RemainQueryString(queryString string, flagArr []uint8, timeRangeArr [][]int
 		minTime = timeRangeArr[0][0]
 		maxTime = timeRangeArr[0][1]
 
-		tmpTagString := fmt.Sprintf("\"%s\"='%s'", tagArr[0][0], tagArr[0][1])
-		startTime := TimeInt64ToString(minTime)
-		endTime := TimeInt64ToString(maxTime)
+		selects := make([]string, 0)
+		for i, tag := range tagArr {
+			if flagArr[i] == 1 {
+				if minTime > timeRangeArr[i][0] {
+					minTime = timeRangeArr[i][0]
+				}
+				if maxTime < timeRangeArr[i][1] {
+					maxTime = timeRangeArr[i][1]
+				}
+				tmpTemplate := template
+				startTime := TimeInt64ToString(timeRangeArr[i][0])
+				endTime := TimeInt64ToString(timeRangeArr[i][1])
 
-		template = strings.Replace(template, "?", tmpTagString, 1)
-		template = strings.Replace(template, "?", startTime, 1)
-		template = strings.Replace(template, "?", endTime, 1)
+				tmpTagString := fmt.Sprintf("\"%s\"='%s'", tag[0], tag[1])
 
-		return template, minTime, maxTime
+				tmpTemplate = strings.Replace(tmpTemplate, "?", tmpTagString, 1)
+				tmpTemplate = strings.Replace(tmpTemplate, "?", startTime, 1)
+				tmpTemplate = strings.Replace(tmpTemplate, "?", endTime, 1)
+				selects = append(selects, tmpTemplate)
+			}
+
+		}
+
+		remainQuerys := strings.Join(selects, ";")
+
+		return remainQuerys, minTime, maxTime
 	}
 	condExprMatch = conditionExpr.FindStringSubmatch(queryString)
 	AggrExpr := condExprMatch[1]

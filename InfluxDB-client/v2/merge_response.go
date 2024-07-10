@@ -130,21 +130,32 @@ func MergeRemainResponse(remainResp, convResp *Response) *Response {
 	index1 := 0
 	index2 := 0
 	for index1 < len(remainResp.Results) && index2 < len(convResp.Results[0].Series) {
-		tag1 := TagsMapToString(remainResp.Results[index1].Series[0].Tags)
-		tag2 := TagsMapToString(convResp.Results[0].Series[index2].Tags)
-
-		cmp := strings.Compare(tag1, tag2)
-		if cmp == -1 {
+		if remainResp.Results[index1].Series == nil {
+			seriesArr = append(seriesArr, convResp.Results[0].Series[index2])
+			index1++
+			index2++
+		} else if convResp.Results[0].Series[index2].Values == nil {
 			seriesArr = append(seriesArr, remainResp.Results[index1].Series[0])
 			index1++
-		} else if cmp == 1 {
-			seriesArr = append(seriesArr, convResp.Results[0].Series[index2])
 			index2++
 		} else {
-			seriesArr = append(seriesArr, mergeSeries(remainResp.Results[index1].Series[0], convResp.Results[0].Series[index2]))
-			index1++
-			index2++
+			tag1 := TagsMapToString(remainResp.Results[index1].Series[0].Tags)
+			tag2 := TagsMapToString(convResp.Results[0].Series[index2].Tags)
+
+			cmp := strings.Compare(tag1, tag2)
+			if cmp == -1 {
+				seriesArr = append(seriesArr, remainResp.Results[index1].Series[0])
+				index1++
+			} else if cmp == 1 {
+				seriesArr = append(seriesArr, convResp.Results[0].Series[index2])
+				index2++
+			} else {
+				seriesArr = append(seriesArr, mergeSeries(remainResp.Results[index1].Series[0], convResp.Results[0].Series[index2]))
+				index1++
+				index2++
+			}
 		}
+
 	}
 
 	for index1 < len(remainResp.Results) {

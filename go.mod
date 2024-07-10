@@ -1,6 +1,6 @@
 module github.com/timescale/tsbs
 
-go 1.21.4
+go 1.21.3
 
 //go 1.14
 

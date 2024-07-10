@@ -274,7 +274,8 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 
 		q = filler.Fill(q, zipNums[i], latestNums[i], newOrOld[i])
 
-		fmt.Println(q.String())
+		// todo 生成后输出
+		//fmt.Println(q.String())
 
 		if currentGroup == c.InterleavedGroupID {
 			err := enc.Encode(q)

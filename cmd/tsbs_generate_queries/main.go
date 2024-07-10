@@ -40,6 +40,9 @@ var useCaseMatrix = map[string]map[string]utils.QueryFillerMaker{
 		devops.LabelHighCPU + "-all":          devops.NewHighCPU(0),
 		devops.LabelHighCPU + "-1":            devops.NewHighCPU(1),
 		devops.LabelLastpoint:                 devops.NewLastPointPerHost,
+		//
+		devops.LabelSimpleCPU:  devops.NewSimpleCPU,
+		devops.LabelCPUQueries: devops.NewCPUQueries,
 	},
 	"iot": {
 		iot.LabelLastLoc:                       iot.NewLastLocPerTruck,
@@ -68,8 +71,9 @@ var useCaseMatrix = map[string]map[string]utils.QueryFillerMaker{
 		iot.LableReadingsAvgFuelConsumption: iot.NewReadingsAvgFuelConsumption,
 		iot.LableReadingsMaxVelocity:        iot.NewReadingsMaxVelocity,
 		//
-		iot.LabelMultiQueries:     iot.NewMultiQueries,
-		iot.LabelOnlyFieldQueries: iot.NewOnlyFieldQueries,
+		iot.LableMultiQueries:          iot.NewMultiQueries,
+		iot.LableMultiQueriesPredicate: iot.NewMultiQueriesPredicate,
+		iot.LableOnlyFieldQueries:      iot.NewOnlyFieldQueries,
 	},
 }
 

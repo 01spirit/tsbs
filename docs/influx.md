@@ -34,7 +34,7 @@ or `quorum`. Only applies for the clustered version.
 
 #### `-replication-factor` (type: `int`, default: `1`)
 
-Level of replication for each write, i.e., number of nodes to store the
+Level of replication for each write, d.e., number of nodes to store the
 data on. Only applies for the clustered version.
 
 #### `-urls` (type: `string`, default: `http://localhost:8086`)

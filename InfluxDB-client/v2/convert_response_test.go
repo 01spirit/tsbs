@@ -321,9 +321,219 @@ func TestDetailQuery(t *testing.T) {
 	}
 }
 
+func TestIoTField(t *testing.T) {
+	querySet := `SELECT mean(nominal_fuel_consumption) FROM "readings" WHERE TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:10:00Z' GROUP BY time(2m) `
+	queryGet := `SELECT mean(nominal_fuel_consumption) FROM "readings" WHERE TIME >= '2022-01-01T00:00:00Z' AND TIME < '2022-01-01T00:20:00Z' GROUP BY time(2m) `
+
+	cacheUrlString := "192.168.1.101:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_small"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_small")
+	Fields = GetFieldKeys(c, "iot_small")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	respSet, _, _ := STsCacheClient(dbConn, querySet)
+
+	query1 := NewQuery(querySet, "iot_small", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp1:\n", resp1.ToString())
+	}
+	fmt.Println("\tresp set:")
+	fmt.Println(respSet.ToString())
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+
+	query2 := NewQuery(queryGet, "iot_small", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp2:\n", resp2.ToString())
+	}
+	fmt.Println("\tresp get:")
+	fmt.Println(respGet.ToString())
+
+}
+
+func TestCPU(t *testing.T) {
+	querySet := `SELECT mean(usage_user),mean(usage_system),mean(usage_idle) FROM "cpu" WHERE ("hostname" = 'host_0' or "hostname" = 'host_1') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T02:00:00Z' GROUP BY "hostname",time(15m)`
+	queryGet := `SELECT mean(usage_user),mean(usage_system),mean(usage_idle) FROM "cpu" WHERE ("hostname" = 'host_0' or "hostname" = 'host_1') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T03:00:00Z' GROUP BY "hostname",time(15m)`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "devops_small"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "devops_small")
+	Fields = GetFieldKeys(c, "devops_small")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	respSet, _, _ := STsCacheClient(dbConn, querySet)
+
+	query1 := NewQuery(querySet, "devops_small", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp1:\n", resp1.ToString())
+	}
+	fmt.Println("\tresp set:")
+	fmt.Println(respSet.ToString())
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+
+	query2 := NewQuery(queryGet, "devops_small", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp2:\n", resp2.ToString())
+	}
+	fmt.Println("\tresp get:")
+	fmt.Println(respGet.ToString())
+
+}
+
+func TestCPU2(t *testing.T) {
+	querySet := `SELECT usage_user,usage_system,usage_idle FROM "cpu" WHERE ("hostname" = 'host_0' or "hostname" = 'host_1') AND usage_user > 60 AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:01:00Z' GROUP BY "hostname"`
+	queryGet := `SELECT usage_user,usage_system,usage_idle FROM "cpu" WHERE ("hostname" = 'host_0' or "hostname" = 'host_1') AND usage_user > 60 AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:02:00Z' GROUP BY "hostname"`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "devops_small"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "devops_small")
+	Fields = GetFieldKeys(c, "devops_small")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	respSet, _, _ := STsCacheClient(dbConn, querySet)
+
+	query1 := NewQuery(querySet, "devops_small", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp1:\n", resp1.ToString())
+	}
+	fmt.Println("\tresp set:")
+	fmt.Println(respSet.ToString())
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+
+	query2 := NewQuery(queryGet, "devops_small", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp2:\n", resp2.ToString())
+	}
+	fmt.Println("\tresp get:")
+	fmt.Println(respGet.ToString())
+
+}
+
+func TestRemainResponseToByteArrayWithParams(t *testing.T) {
+	querySet := `SELECT mean(latitude),mean(longitude),mean(elevation),mean(grade),mean(heading),mean(velocity) FROM "readings" WHERE ("name"='truck_0') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:10:00Z' group by time(1m)`
+	queryGet := `SELECT mean(latitude),mean(longitude),mean(elevation),mean(grade),mean(heading),mean(velocity) FROM "readings" WHERE ("name"='truck_0') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:15:00Z' group by time(1m)`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_medium"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_medium")
+	Fields = GetFieldKeys(c, "iot_medium")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	respSet, _, _ := STsCacheClient(dbConn, querySet)
+
+	query1 := NewQuery(querySet, "iot_medium", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp1:\n", resp1.ToString())
+	}
+	fmt.Println("\tresp set:")
+	fmt.Println(respSet.ToString())
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+
+	query2 := NewQuery(queryGet, "iot_medium", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp2:\n", resp2.ToString())
+	}
+	fmt.Println("\tresp get:")
+	fmt.Println(respGet.ToString())
+
+}
+
+func TestRemainResponseToByteArrayWithParams2(t *testing.T) {
+	querySet := `SELECT velocity,fuel_consumption,grade FROM "readings" WHERE ("name" = 'truck_0' or "name"='truck_1') AND velocity < 10 AND fuel_consumption > 20 AND grade < 40 AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-02T01:30:00Z' GROUP BY "name"`
+	queryGet := `SELECT velocity,fuel_consumption,grade FROM "readings" WHERE ("name" = 'truck_0' or "name"='truck_1') AND velocity < 10 AND fuel_consumption > 20 AND grade < 40 AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-02T02:00:00Z' GROUP BY "name"`
+
+	cacheUrlString := "192.168.1.102:11211"
+	urlArr := strings.Split(cacheUrlString, ",")
+	conns := InitStsConnsArr(urlArr)
+	DB = "iot_medium"
+	fmt.Printf("number of conns:%d\n", len(conns))
+	TagKV = GetTagKV(c, "iot_medium")
+	Fields = GetFieldKeys(c, "iot_medium")
+	STsConnArr = InitStsConnsArr(urlArr)
+	var dbConn, _ = NewHTTPClient(HTTPConfig{
+		Addr: "http://192.168.1.103:8086",
+	})
+
+	//respSet, _, _ := STsCacheClient(dbConn, querySet)
+
+	query1 := NewQuery(querySet, "iot_medium", "s")
+	resp1, err := dbConn.Query(query1)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp1:\n", resp1.ToString())
+	}
+	fmt.Println("\tresp set:")
+	//fmt.Println(respSet.ToString())
+
+	respGet, _, _ := STsCacheClient(dbConn, queryGet)
+
+	query2 := NewQuery(queryGet, "iot_medium", "s")
+	resp2, err := dbConn.Query(query2)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("\tdatabase resp2:\n", resp2.ToString())
+	}
+	fmt.Println("\tresp get:")
+	fmt.Println(respGet.ToString())
+
+}
+
 func TestRemainQueryString(t *testing.T) {
-	queryToBeSet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE "name"='truck_0' AND  TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:10:00Z'`
-	queryToBeGet := `SELECT current_load,load_capacity FROM "diagnostics" WHERE  "name"='truck_0' AND TIME >= '2018-01-01T00:00:00Z' AND TIME <= '2018-01-01T00:30:00Z'`
+	queryToBeSet := `SELECT mean(latitude),mean(longitude),mean(elevation),mean(grade),mean(heading),mean(velocity) FROM "readings" WHERE ("name"='truck_0') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:10:00Z' GROUP BY "name",time(1m)`
+	queryToBeGet := `SELECT mean(latitude),mean(longitude),mean(elevation),mean(grade),mean(heading),mean(velocity) FROM "readings" WHERE ("name"='truck_0') AND TIME >= '2022-01-01T01:00:00Z' AND TIME < '2022-01-01T01:15:00Z' GROUP BY "name",time(1m)`
 
 	urlString := "192.168.1.102:11211"
 	urlArr := strings.Split(urlString, ",")
@@ -380,7 +590,7 @@ func TestRemainQueryString(t *testing.T) {
 		fmt.Printf("remain min time:\n%d\t%s\n", minTime, TimeInt64ToString(minTime))
 		fmt.Printf("remain max time:\n%d\t%s\n", maxTime, TimeInt64ToString(maxTime))
 
-		remainQuery := NewQuery(remainQueryString, "iot", "s")
+		remainQuery := NewQuery(remainQueryString, "iot_small", "s")
 		remainResp, _ := c.Query(remainQuery)
 		remainByteArr := ResponseToByteArray(remainResp, queryToBeGet)
 		numOfTableR := len(remainResp.Results[0].Series)
